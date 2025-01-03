@@ -9,6 +9,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Binding var isPresented: Bool
+    @State private var isSignInPresented: Bool = false // Novo stanje za otvaranje SignInView
     @Environment(\.colorScheme) var colorScheme
     
     var naslov = """
@@ -16,9 +17,9 @@ struct OnboardingView: View {
                  design
                  & code
                  """
-
+    
     var body: some View {
-        
+        ZStack{
         VStack(alignment: .leading, spacing: 20) {
             
             Spacer()
@@ -32,36 +33,36 @@ struct OnboardingView: View {
                     .fontWeight(.heavy)
                     .font(.system(size: 60))
                     .frame(minWidth: .leastNormalMagnitude, alignment: .leading)
-//                    .padding(.top)
+                //                    .padding(.top)
                     .lineSpacing(20)
+                
+                //MARK: .background(.yellow)
+                Spacer()
+                VStack {
                     
-                    //MARK: .background(.yellow)
-                    Spacer()
-                    VStack {
-                        
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.5)) {
-                                                isPresented = false
-                                            }
-                        }) {
-                            Image(systemName: "multiply.circle.fill")
-                                .resizable()
-                                .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
-                                .scaledToFit()
-                                .frame(width: 34, height: 34) // Veličina ikone
-                                .padding(8) // Unutrašnji razmak
-                                //.background(Color.gray.opacity(0.2)) // Pozadinska boja
-                                .clipShape(Circle()) // Oblik kružnice
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            isPresented = false
                         }
-                        .frame(width: 36, height: 36) // Ukupne dimenzije dugmeta
-                        .contentShape(Circle())
-                        .padding()
-                        .padding(.top, 10)
-                        
-                        Spacer()
-                    }//.background(.red) // Površina klika
+                    }) {
+                        Image(systemName: "multiply.circle.fill")
+                            .resizable()
+                            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                            .scaledToFit()
+                            .frame(width: 34, height: 34) // Veličina ikone
+                            .padding(8) // Unutrašnji razmak
+                        //.background(Color.gray.opacity(0.2)) // Pozadinska boja
+                            .clipShape(Circle()) // Oblik kružnice
+                    }
+                    .frame(width: 36, height: 36) // Ukupne dimenzije dugmeta
+                    .contentShape(Circle())
+                    .padding()
+                    .padding(.top, 10)
                     
-                }.frame(maxWidth: .infinity, alignment: .leading)
+                    Spacer()
+                }//.background(.red) // Površina klika
+                
+            }.frame(maxWidth: .infinity, alignment: .leading)
             //.background(.green)
                 .padding(.top, 20)
             Text("Don’t skip design. Learn design and code, by building real apps with React and Swift. Complete courses about the best tools.")
@@ -72,7 +73,7 @@ struct OnboardingView: View {
                 .padding(.bottom, 20)
                 .padding(.trailing, 50)
                 .lineSpacing(2)
-
+            
             Spacer()
             Spacer()
             Spacer()
@@ -80,7 +81,7 @@ struct OnboardingView: View {
             
             Button(action: {
                 withAnimation {
-                    //self.isSignInPresented = true
+                    self.isSignInPresented = true
                 }
             }) {
                 Image(systemName: "arrow.right")
@@ -106,11 +107,11 @@ struct OnboardingView: View {
                 .padding(.trailing, 50)
                 .padding(.bottom, 40)
             //Spacer()
-//            Spacer()
-//            Spacer()
-//            Spacer()
-//            Spacer()
-
+            //            Spacer()
+            //            Spacer()
+            //            Spacer()
+            //            Spacer()
+            
             
         }
         // MARK: .background(.purple)
@@ -121,11 +122,17 @@ struct OnboardingView: View {
         .background(Color(.systemBackground))
         .cornerRadius(30, corners: [.bottomLeft, .bottomRight]) // Samo gornji uglovi zaobljeni
         .shadow(
-                    color: colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.5), // Dinamička sjena
-                    radius: 20
-                )
+            color: colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.5), // Dinamička sjena
+            radius: 20
+        )
         .padding(.bottom, 160) // Daje razmak na dnu
-    }
+        if isSignInPresented {
+            SignInView(isPresented: $isSignInPresented)
+                .transition(.move(edge: .top)) // Animacija odozgo
+                .zIndex(3) // Viši sloj
+        }
+    }.animation(.spring(response: 0.8, dampingFraction: 0.85, blendDuration: 0.4), value: isSignInPresented)
+}
         
 }
 

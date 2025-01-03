@@ -33,7 +33,7 @@ struct ContentView: View {
                                     .imageScale(.large)
                             },
                             trailing: Button(action: {
-                                withAnimation(.easeInOut(duration: 0.5)) {
+                                withAnimation(.spring(response: 0.8, dampingFraction: 0.85, blendDuration: 0.4)) {
                                     isOnboardingPresented = true
                                 }
                             }) {
