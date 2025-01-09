@@ -48,7 +48,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .offset(x: isMenuOpen ? 250 : 0) // Pomjeranje TabView-a
+            .offset(x: isMenuOpen ? 300 : 0) // Pomjeranje TabView-a
             .blur(radius: isOnboardingPresented ? 5 : 0) // Zamagljenje pozadine kada je Onboarding aktivan
             .animation(.easeInOut, value: isMenuOpen)
             .animation(.easeInOut, value: isOnboardingPresented)
@@ -56,7 +56,7 @@ struct ContentView: View {
             // Side Menu
             if isMenuOpen {
                 SideMenu(isOpen: $isMenuOpen)
-                    .frame(width: 250) // Širina SideMenu-a
+                    .frame(width: 300) // Širina SideMenu-a
                     .transition(.move(edge: .leading)) // Animacija ulaska
                     .zIndex(1)
             }
