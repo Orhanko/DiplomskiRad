@@ -11,6 +11,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		472445EC2D314DCD00DC8D5E /* Models */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Models;
+			sourceTree = "<group>";
+		};
 		4745CE3E2D204EF700011191 /* DiplomskiRadBezAnimacija */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DiplomskiRadBezAnimacija;
@@ -34,6 +39,7 @@
 			children = (
 				4745CE3E2D204EF700011191 /* DiplomskiRadBezAnimacija */,
 				4745CE3D2D204EF700011191 /* Products */,
+				472445EC2D314DCD00DC8D5E /* Models */,
 			);
 			sourceTree = "<group>";
 		};
@@ -61,6 +67,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				472445EC2D314DCD00DC8D5E /* Models */,
 				4745CE3E2D204EF700011191 /* DiplomskiRadBezAnimacija */,
 			);
 			name = DiplomskiRadBezAnimacija;

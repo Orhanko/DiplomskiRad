@@ -11,7 +11,7 @@ struct SideMenu: View {
     @Binding var isOpen: Bool
     
     var body: some View {
-        SideMenuContentView()
+        SideMenuContentView(isOpen: $isOpen)
     }
 }
 
@@ -20,9 +20,10 @@ struct SideMenu: View {
 }
 
 struct SideMenuContentView: View{
+    @Binding var isOpen: Bool
     var body: some View {
         VStack(alignment: .leading) {
-            InfoView()
+            InfoView(isOpen: $isOpen)
             BrowseListView()
             HistoryListView()
         }
@@ -34,6 +35,7 @@ struct SideMenuContentView: View{
 }
 
 struct InfoView: View {
+    @Binding var isOpen: Bool
     var body: some View {
         HStack {
             Image(systemName: "person.circle")
@@ -48,10 +50,24 @@ struct InfoView: View {
                     .foregroundStyle(.gray)
             }
             Spacer()
-            Image(systemName: "multiply.circle.fill")
-                .resizable()
-                .frame(width: 30, height: 30)
-                .padding(.top, -30)
+            Button(action: {
+                            
+                withAnimation(.easeInOut) {
+                    isOpen = false
+                }
+                // Generiše nove random podatke
+                            
+                        }, label: {
+//                            Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
+//                                .padding(.bottom, 50)
+                            Image(systemName: "multiply.circle.fill")
+                                .resizable()
+                                .frame(width: 30, height: 30)
+                        }).padding(.top, -30)
+//            Image(systemName: "multiply.circle.fill")
+//                .resizable()
+//                .frame(width: 30, height: 30)
+//                .padding(.top, -30)
             
         }
         .padding(.horizontal)

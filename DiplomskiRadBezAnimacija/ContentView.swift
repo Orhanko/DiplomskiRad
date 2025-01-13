@@ -6,6 +6,25 @@
 //
 
 import SwiftUI
+import Charts
+
+extension Color {
+    func darker(by percentage: CGFloat = 0.2) -> Color {
+        let uiColor = UIColor(self) // Pretvaramo SwiftUI `Color` u `UIColor`
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+
+        if uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+            return Color(UIColor(
+                red: max(red - percentage, 0),
+                green: max(green - percentage, 0),
+                blue: max(blue - percentage, 0),
+                alpha: alpha
+            ))
+        }
+
+        return self // Vraća istu boju ako nije uspjelo
+    }
+}
 
 struct ContentView: View {
     
@@ -82,14 +101,29 @@ struct TabOneView: View {
     
     var body: some View {
         NavigationView{
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 20) {
-                    ForEach(courses) { course in
-                        VCard(course: course)
+            ScrollView(.vertical, showsIndicators: true){
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 20) {
+                        ForEach(courses) { course in
+                            VCard(course: course)
+                        }
+                    }
+                    .padding(20)
+                    .padding(.bottom, 10)
+                    
+                }
+                VStack {
+                    Text("Recent")
+                        .font(.title)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    VStack(spacing: 20) {
+                        ForEach(courseSections) { section in
+                            HCard(section: section)
+                        }
                     }
                 }
                 .padding(20)
-                .padding(.bottom, 10)
             }
             .navigationBarItems(
                 leading: Button(action: {
@@ -117,9 +151,29 @@ struct TabOneView: View {
 struct TabTwoView: View {
     @Binding var isMenuOpen: Bool
     @Binding var isOnboardingPresented: Bool
+    
+    @StateObject var highestSalesViewModel = HighestSalesViewModel()
+    @StateObject private var viewModel = SalesViewModel()
     var body: some View {
         NavigationView{
-            Text("Nesto 2")
+            ScrollView(.vertical, showsIndicators: true){
+                VStack {
+                    DailySalesChartView(salesData: viewModel.salesData)
+                        .padding()
+                    MonthlySalesChartView(salesViewModel: SalesViewModel())
+                    NavigationLink{
+                        SalesPerBookCategoryView(viewModel: highestSalesViewModel)
+                    } label: {
+                        SectorMarkView(salesViewModel: highestSalesViewModel)
+                    }.buttonStyle(PlainButtonStyle())
+//                SectorMarkView()
+                        .padding()
+                    
+                }
+            }
+            
+            
+            
             .navigationBarItems(
                 leading: Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -140,8 +194,501 @@ struct TabTwoView: View {
             )
             .navigationTitle("Search")
         }
+        
+    }
+    func formatDate(date: Date, format: String) -> String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = format
+            return formatter.string(from: date)
+        }
+}
+
+struct MonthlyMinimizedSalesChartView: View {
+    var barColor: Color // Dodana boja kao parametar
+    @ObservedObject var salesViewModel: SalesViewModel
+    
+    var body: some View {
+        VStack {
+            Chart(salesViewModel.salesByMonth, id: \.month) { data in
+                BarMark(
+                    x: .value("Month", data.month, unit: .month), // X osa po mjesecima
+                    y: .value("Sales", data.sales) // Y osa po prodaji
+                )
+                .foregroundStyle(barColor) // Boja traka
+                .cornerRadius(4) // Zaobljeni rubovi traka
+                // RuleMark linija na prosječnu vrijednost prodaje
+                RuleMark(
+                    y: .value("Average Sales", salesViewModel.averageSales)
+                )
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6])) // Stil linije (debljina i isprekidanost)
+                .foregroundStyle(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1))) // Boja linije
+                .annotation(position: .top) { // Tekstualna oznaka iznad linije
+                    Text("Average: \(Int(salesViewModel.averageSales))")
+                        .font(.callout)
+                        .foregroundColor(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1)))
+                }
+            }
+            .frame(height: 150) // Visina grafikona
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { value in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated))
+                        .foregroundStyle(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1)))// Skratnice naziva mjeseci
+                }
+            }
+            
+            .chartYAxis(.hidden)
+            Text("Course blabla overview")
+                .font(.footnote)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .foregroundStyle(.white).opacity(0.7)
+                .padding(.top, 10)
+                .padding(.trailing, 5)
+            
+
+        }
+            }
+}
+
+struct MonthlySalesChartView: View {
+    
+    @ObservedObject var salesViewModel: SalesViewModel
+    
+    var body: some View {
+        VStack {
+            Text("Mjesečna prodaja artikala")
+                .font(.title2)
+                .padding(.bottom)
+
+            Chart(salesViewModel.salesByMonth) {
+                AreaMark(
+                    x: .value("Mjesec", $0.month, unit: .month),
+                    y: .value("Prodaja", $0.sales)
+                )
+                .foregroundStyle(
+                    .linearGradient(
+                        Gradient(colors: [.blue.opacity(0.4), .clear]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                LineMark(
+                    x: .value("Mjesec", $0.month, unit: .month),
+                    y: .value("Prodaja", $0.sales)
+                )
+                .foregroundStyle(.blue)
+                .shadow(color: .blue.opacity(0.3), radius: 15, x: 0, y: 30)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { _ in
+                    AxisGridLine()
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.month(.abbreviated), centered: true)
+                         // Prikaz skraćenog naziva mjeseca (Jan, Feb...)
+                }
+            }
+            .frame(height: 300)
+            .padding()
+        }
+        
     }
 }
+
+class SalesViewModel: ObservableObject {
+    @Published var salesData: [Sale] = [] // Lista prodaja
+    @Published var salesByMonth: [MonthlySale] = [] // Lista prodaja
+
+    init() {
+        generateDummyData()
+        generateRandomMonthlySalesData()
+    }
+
+    func generateDummyData() {
+            let calendar = Calendar.current
+            let currentDate = Date()
+
+            // Dodajemo nasumične prodaje za svaki dan unazad 365 dana
+            for dayOffset in 0..<365 {
+                if let date = calendar.date(byAdding: .day, value: -dayOffset, to: currentDate) {
+                    let randomQuantity = Int.random(in: 0...100) // Nasumična količina prodaje po danu
+                    salesData.append(Sale(saleDate: date, quantity: randomQuantity))
+                }
+            }
+
+            // Sortiramo podatke po datumu
+            salesData.sort { $0.saleDate < $1.saleDate }
+        }
+    func generateRandomMonthlySalesData() {
+            let calendar = Calendar.current
+            var currentDate = Date()
+            salesByMonth = (0..<12).map { _ in
+                let components = calendar.dateComponents([.year, .month], from: currentDate)
+                let monthStart = calendar.date(from: components) ?? Date()
+                let salesCount = Int.random(in: 100...500) // Nasumični broj prodaja
+                currentDate = calendar.date(byAdding: .month, value: -1, to: currentDate) ?? Date()
+                return MonthlySale(month: monthStart, sales: salesCount)
+            }.reversed() // Redoslijed od najstarijeg do najnovijeg
+        }
+    var averageSales: Double {
+        let totalSales = salesByMonth.reduce(0) { $0 + $1.sales } // Zbir svih prodaja
+        return Double(totalSales) / Double(salesByMonth.count) // Prosjek
+        }
+}
+
+struct MonthlySale: Identifiable {
+    let id = UUID()
+    let month: Date
+    let sales: Int
+}
+
+struct Sale: Identifiable {
+    let id = UUID()
+    let saleDate: Date
+    let quantity: Int
+}
+
+struct HighestCourseSale: Identifiable {
+    let id = UUID()
+    let category: String
+    let sales: Double
+    let color: Color
+}
+
+class HighestSalesViewModel: ObservableObject {
+    @Published var totalSalesPerCategory: [HighestCourseSale] = []
+
+    init() {
+        generateRandomSalesData() // Generisanje nasumičnih podataka
+    }
+
+    func generateRandomSalesData() {
+        let coursesWithColors: [(String, Color)] = [
+                    ("Kurs 1", .blue),
+                    ("Kurs 2", .green),
+                    ("Kurs 3", .orange),
+                    ("Kurs 4", .purple)
+                ]
+        totalSalesPerCategory = coursesWithColors.map { (courseName, color) in
+            HighestCourseSale(category: courseName, sales: Double.random(in: 100...500), color: color)
+                }
+    }
+
+    var bestSellingCategory: HighestCourseSale? {
+        totalSalesPerCategory.max(by: { $0.sales < $1.sales })
+    }
+
+    var totalSales: Double {
+        totalSalesPerCategory.reduce(0) { $0 + $1.sales }
+    }
+
+    var bestSellingPercentageText: String {
+        guard let best = bestSellingCategory else { return "Nema podataka" }
+        let percentage = (best.sales / totalSales) * 100
+        return "\(best.category) ima najviše prodaja sa \(String(format: "%.2f", percentage))% ukupnih prodaja."
+    }
+}
+
+
+struct SectorMarkView: View {
+    @ObservedObject var salesViewModel: HighestSalesViewModel
+
+    var body: some View {
+        HStack {
+            // Tekst sa informacijom o najprodavanijem kursu
+//            Text(salesViewModel.bestSellingPercentageText)
+            if let bestSellingCategory = salesViewModel.bestSellingCategory {
+                let percentage = (bestSellingCategory.sales / salesViewModel.totalSales) * 100
+
+                Group { // Grupisanje teksta radi dodavanja padding-a na cijelu rečenicu
+                    Text("Najprodavaniji kurs je ") +
+                    Text("\(bestSellingCategory.category)")
+                        .foregroundColor(.blue) // Boja naziva kursa
+                        .fontWeight(.heavy) +
+                    Text(" sa \(String(format: "%.2f", percentage))% ukupnih prodaja.")
+                        .foregroundColor(.primary) // Ostatak teksta u default boji
+                }
+                .padding() // Padding na cijelu grupu teksta
+            } else {
+                Text("Nema podataka o prodaji.")
+                    .padding() // Dodavanje padding-a i za "fallback" poruku
+            }
+                
+
+            // SectorMark Chart
+            if #available(macOS 14.0, *) {
+                Chart(salesViewModel.totalSalesPerCategory, id: \.category) { data in
+                    SectorMark(
+                        angle: .value("Prodaja", data.sales),
+                        innerRadius: .ratio(0.5), // Donut izgled
+                        angularInset: 1.5 // Razmak između sektora
+                    )
+                    .foregroundStyle(.blue/*by: .value("Kategorija", data.category)*/) // Različite boje po kategorijama
+                    .cornerRadius(5.0)
+                    .opacity(data.category == salesViewModel.bestSellingCategory?.category ? 1 : 0.2) // Najprodavaniji kurs ima punu vidljivost
+                }
+                .aspectRatio(1, contentMode: .fit)
+                .frame(height: 70) // Veličina pie chart-a
+                .padding()
+                .chartLegend(.hidden)
+            }
+            Image(systemName: "chevron.right") // Strelica desno
+                            .foregroundColor(.gray) // Siva boja strelice
+                            .font(.system(size: 16)) // Prilagođena veličina i težina
+                            .padding(.trailing,5)
+        }
+        
+        .frame(maxWidth: .infinity, maxHeight: 110)
+        
+        .background(/*Color(#colorLiteral(red: 0.3647058904, green: 0.06666667014, blue: 0.9686274529, alpha: 1))*/.gray.opacity(0.2))
+        .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
+    }
+        
+}
+
+struct SalesPerBookCategoryView: View {
+    
+    enum ChartStyle: String, CaseIterable, Identifiable {
+        case pie = "Pie Chart"
+        case bar = "Bar Chart"
+      
+        var id: Self { self }
+    }
+    
+    @ObservedObject var viewModel: HighestSalesViewModel
+    @State private var selectedChartStyle: ChartStyle = .pie // Zadano: Pie chart
+    
+    var body: some View {
+        VStack {
+            // Picker sa dva izbora
+            Picker("Chart Type", selection: $selectedChartStyle) {
+                ForEach(ChartStyle.allCases) {
+                    Text($0.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.bottom)
+            if let bestSellingCategory = viewModel.bestSellingCategory {
+                let percentage = (bestSellingCategory.sales / viewModel.totalSales) * 100
+
+                Group { // Grupisanje teksta radi dodavanja padding-a na cijelu rečenicu
+                    Text("Najprodavaniji kurs je ") +
+                    Text("\(bestSellingCategory.category)")
+                        .foregroundColor(bestSellingCategory.color) // Boja naziva kursa
+                        .fontWeight(.heavy) +
+                    Text(" sa \(String(format: "%.2f", percentage))% ukupnih prodaja.")
+                        .foregroundColor(.primary) // Ostatak teksta u default boji
+                }
+                
+                .padding(.bottom)
+                .font(.title3)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(nil)
+                 // Padding na cijelu grupu teksta
+            } else {
+                Text("Nema podataka o prodaji.")
+                    .padding() // Dodavanje padding-a i za "fallback" poruku
+            }
+            
+//            TEKST
+            
+            // Prikaz prema odabranom tipu grafikona
+            switch selectedChartStyle {
+                case .bar:
+                CustomSalesPerBookCategoryBarChartView(salesViewModel: viewModel) // Bar Chart prikaz
+                case .pie:
+                    FullSizePieChartView(salesViewModel: viewModel) // Pie Chart prikaz
+            }
+            Spacer()
+            Button(action: {
+                            withAnimation(.easeInOut(duration: 0.6)) {
+                                viewModel.generateRandomSalesData() // Generiše nove random podatke
+                            }
+                        }, label: {
+                            Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
+                                .padding(.bottom, 50)
+                        })
+                        
+            
+            
+            
+        }
+        .padding()
+    }
+}
+
+struct CustomSalesPerBookCategoryBarChartView: View {
+    
+    @ObservedObject var salesViewModel: HighestSalesViewModel
+    
+    var body: some View {
+        VStack(spacing: 20){
+            
+            
+        Chart(salesViewModel.totalSalesPerCategory, id: \.category) { data in
+            // Horizontalne BarMark trake
+            BarMark(
+                x: .value("Prodaja", data.sales),
+                y: .value("Kategorija", data.category)
+            )
+            .foregroundStyle(data.category == salesViewModel.bestSellingCategory?.category ? data.color.opacity(1) : data.color.opacity(0.6)) // Prilagođena boja za najbolju kategoriju
+            .cornerRadius(5) // Zaobljeni rubovi trake
+            .opacity(data.category == salesViewModel.bestSellingCategory?.category ? 1 : 0.5) // Smanjena vidljivost za ostale kategorije
+            
+            .annotation(position: .trailing) { // Dodavanje vrijednosti prodaje na kraj trake
+                Text("\(Int(data.sales))")
+                    .font(.body)
+                    .foregroundColor(.primary).opacity(data.category == salesViewModel.bestSellingCategory?.category ? 1 : 0.5)
+                    
+            }
+        }
+        
+        .chartLegend(.hidden) // Sakriva legendu
+        .frame(maxHeight: 380) // Ograničena visina grafikona
+        //.padding(10) // Dodaje padding oko grafikona
+    }
+    }
+}
+
+struct FullSizePieChartView: View {
+    @ObservedObject var salesViewModel: HighestSalesViewModel
+
+    var body: some View {
+        VStack(spacing: 20) {
+            
+//                .font(.headline)
+//                .padding(.bottom, 10)
+
+            Chart(salesViewModel.totalSalesPerCategory, id: \.category) { data in
+                SectorMark(
+                    angle: .value("Prodaja", data.sales),
+                    innerRadius: .ratio(0.6), // Širi prikaz grafikona
+                    angularInset: 8 // Razmak između sektora
+                )
+                .cornerRadius(5)
+                .foregroundStyle(by: .value("Naziv", data.category))
+                .opacity(data.category == salesViewModel.bestSellingCategory?.category ? 1 : 0.3)
+            }
+            .chartLegend(alignment: .center) {
+                HStack {
+                    ForEach(Array(salesViewModel.totalSalesPerCategory.sorted(by: { $0.sales > $1.sales }).enumerated()), id: \.element.category) { index, item in
+                        Label {
+                            Text(item.category)
+                                .padding(.top)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                        } icon: {
+                            Circle()
+                                .frame(width: 12, height: 12)
+                                .foregroundStyle(item.color)
+                                .opacity(index == 0 ? 1 : 0.3)
+                                // Boja na osnovu kategorije
+                        }
+                        .padding(.trailing)
+                    }
+                }.padding(.leading)
+            }// Prikazuje legendu ispod grafikona
+            .chartBackground { chartProxy in
+                GeometryReader { geometry in
+                    let frame = geometry[chartProxy.plotFrame!]
+
+                    if let bestSellingCategory = salesViewModel.bestSellingCategory {
+                        VStack(spacing: 5) {
+                            Text("Most Sold Course")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            Text(bestSellingCategory.category)
+                                .font(.title.bold())
+                                .foregroundColor(bestSellingCategory.color)
+                            Text("\(Int(bestSellingCategory.sales)) sold")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
+                        .multilineTextAlignment(.center)
+                        .frame(width: frame.width * 0.6) // Ograničimo širinu teksta unutar kruga
+                        .position(x: frame.midX, y: frame.midY) // Centriramo tekst unutar grafikona
+                    }
+                }
+            }
+            .frame(width: 380, height: 380) // Veći prikaz
+            //.padding()
+        }
+        //.padding()
+    }
+}
+
+
+
+struct DailySalesChartView: View {
+
+    let salesData: [Sale]
+    
+
+    init(salesData: [Sale]) {
+        self.salesData = salesData
+
+        guard let lastDate = salesData.last?.saleDate else { return }
+            self._scrollPosition = State(initialValue: lastDate.timeIntervalSinceReferenceDate)
+
+    }
+
+    let numberOfDisplayedDays = 31
+
+    @State var scrollPosition: TimeInterval = TimeInterval()
+
+    var scrollPositionStart: Date {
+        Date(timeIntervalSinceReferenceDate: scrollPosition)
+    }
+
+    var scrollPositionEnd: Date {
+        scrollPositionStart.addingTimeInterval(3600 * 24 * 30)
+    }
+
+    var scrollPositionString: String {
+        scrollPositionStart.formatted(.dateTime.month().day().year())
+    }
+
+    var scrollPositionEndString: String {
+        scrollPositionEnd.formatted(.dateTime.month().day().year())
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+
+            Text("\(scrollPositionString) – \(scrollPositionEndString)")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Chart(salesData, id: \.saleDate) {
+                BarMark(
+                    x: .value("Day", $0.saleDate, unit: .day),
+                    y: .value("Sales", $0.quantity)
+                )
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 10)) { value in
+                    AxisGridLine() // Prikazuje linije svake 7. oznake (jednom sedmično)
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        
+                        
+                }
+            }
+            .chartScrollableAxes(.horizontal)
+            
+            .chartXVisibleDomain(length: 3600 * 24 * Double(numberOfDisplayedDays))
+            // shows 30 days
+            // snap to begining of month when release scrolling
+            .chartScrollTargetBehavior(
+                .valueAligned(
+                    matching: .init(hour: 0),
+                    majorAlignment: .matching(.init(day: 1))))
+            .chartScrollPosition(x: $scrollPosition)
+            .frame(height: 200)
+        }
+    }
+}
+
+
+
 
 struct TabThreeView: View {
     @Binding var isMenuOpen: Bool
@@ -235,36 +782,42 @@ struct TabFiveView: View {
 
 struct VCard: View {
     var course: Course
-    
+    @StateObject private var viewModel = SalesViewModel()
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(course.title)
                 .font(.title2)
                 .fontWeight(.heavy)
-                .frame(maxWidth: 170, alignment: .leading)
+                .frame(maxWidth: 300, alignment: .leading)
+                .multilineTextAlignment(.leading) // Centriranje teksta unutar linija
+                .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(1)
+                .padding(.top, 25)
+                .padding(.leading, 25)
             Text(course.subtitle)
+                .lineLimit(nil)
                 .opacity(0.7)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: 300, alignment: .leading)
+                .multilineTextAlignment(.leading) // Centriranje teksta unutar linija
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 25)
+                
             Text(course.caption.uppercased())
                 .font(.footnote)
+                .padding(.leading, 25)
                 .fontWeight(.semibold)
                 .opacity(0.7)
                 .padding(.top, 10)
             Spacer()
-            HStack {
-                ForEach(Array([4, 5, 6].shuffled().enumerated()), id: \.offset) { index, number in
-                    Image("Avatar \(number)")
-                        .resizable()
-                        .mask(Circle())
-                        .frame(width: 44, height: 44)
-                        .offset(x: CGFloat(index * -20))
-                }
-            }
+            MonthlyMinimizedSalesChartView(barColor: course.color.darker(by: 0.25), salesViewModel: viewModel)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+                
         }
         .foregroundColor(.white)
-        .padding(30)
-        .frame(width: 260, height: 310)
+//        .padding(30)
+        .frame(width: 360, height: 450)
         .background(.linearGradient(colors: [course.color.opacity(1), course.color.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .shadow(color: course.color.opacity(0.3), radius: 8, x: 0, y: 12)
@@ -277,8 +830,34 @@ struct VCard: View {
     }
 }
 
+struct HCard: View {
+    var section = courseSections[0]
+    
+    var body: some View {
+        HStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(section.title)
+                    .font(.title2)
+                    .fontWeight(.heavy)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(section.caption)
+                    .font(.body)
+            }
+            Divider().frame(width: 1.5, height: 70)  // Vertikalni `Divider` dužine 100 pt i širine 2 pt
+                .background(Color.gray).opacity(0.5)
+                .padding(.trailing, 10)
+            section.image
+        }
+        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: 110)
+        .foregroundColor(.white)
+        .background(section.color)
+        .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
+    }
+}
+
 
 #Preview{
     
-    ContentView()
+    
 }
