@@ -160,12 +160,12 @@ struct TabTwoView: View {
                 VStack {
                     DailySalesChartView(salesData: viewModel.salesData)
                         .padding()
-                    MonthlySalesChartView(salesViewModel: SalesViewModel())
+                    MonthlySalesChartView(salesViewModel: viewModel)
                     NavigationLink{
                         SalesPerBookCategoryView(viewModel: highestSalesViewModel)
                     } label: {
                         SectorMarkView(salesViewModel: highestSalesViewModel)
-                    }.buttonStyle(PlainButtonStyle())
+                    }
 //                SectorMarkView()
                         .padding()
                     
@@ -278,6 +278,16 @@ struct MonthlySalesChartView: View {
                 .interpolationMethod(.catmullRom) // Zaobljeni prelazi linije
                 .foregroundStyle(.blue)
                 .shadow(color: .blue.opacity(0.3), radius: 15, x: 0, y: 30)
+                RuleMark(
+                    y: .value("Average Sales", salesViewModel.averageSales)
+                )
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6])) // Stil linije (debljina i isprekidanost)
+                .foregroundStyle(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1))) // Boja linije
+                .annotation(position: .top) { // Tekstualna oznaka iznad linije
+                    Text("Average: \(Int(salesViewModel.averageSales))")
+                        .font(.callout)
+                        .foregroundColor(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1)))
+                }
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month)) { _ in
@@ -811,14 +821,18 @@ struct TabFiveView: View {
 
 struct VCard: View {
     var course: Course
-    @StateObject private var viewModel = SalesViewModel()
+    @ObservedObject private var viewModel = SalesViewModel()
+    @State private var isModalPresented = false
     var body: some View {
+        //NavigationLink(destination: MonthlySalesChartView(salesViewModel: viewModel)){
+        ZStack{
         VStack(alignment: .leading, spacing: 8) {
             Text(course.title)
                 .font(.title2)
                 .fontWeight(.heavy)
                 .frame(maxWidth: 300, alignment: .leading)
-                .multilineTextAlignment(.leading) // Centriranje teksta unutar linija
+                .multilineTextAlignment(.leading)// Centriranje teksta unutar linija
+                .padding(.top,25)
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(1)
                 .padding(.top, 25)
@@ -830,7 +844,7 @@ struct VCard: View {
                 .multilineTextAlignment(.leading) // Centriranje teksta unutar linija
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.leading, 25)
-                
+            
             Text(course.caption.uppercased())
                 .font(.footnote)
                 .padding(.leading, 25)
@@ -842,20 +856,46 @@ struct VCard: View {
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal)
                 .padding(.bottom, 20)
-                
+            
         }
         .foregroundColor(.white)
-//        .padding(30)
-        .frame(width: 360, height: 450)
+        //        .padding(30)
+        .frame(width: 360, height: 460)
         .background(.linearGradient(colors: [course.color.opacity(1), course.color.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .shadow(color: course.color.opacity(0.3), radius: 8, x: 0, y: 12)
+        
         .shadow(color: course.color.opacity(0.3), radius: 2, x: 0, y: 1)
         .overlay(
-            course.image
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(20)
+            ZStack{
+                course.image
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(20)
+                Image(systemName: "chevron.compact.up") // Strelica desno
+                    .foregroundColor(.white) // Siva boja strelice
+                    .font(.system(size: 20)) // Prilagođena veličina i težina
+                    .padding(.top,20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
         )
+        
+    }
+        
+        .onTapGesture{
+            isModalPresented = true
+        }
+            
+        
+                .sheet(isPresented: $isModalPresented) {
+                    NavigationView{
+                        MonthlySalesChartView(salesViewModel: viewModel)
+                            .navigationTitle(course.title)// Modalni prikaz sa istim podacima
+                            .navigationBarTitleDisplayMode(.inline)
+                    }.presentationDragIndicator(.visible)
+                        
+                }
+
+        //}
     }
 }
 
@@ -959,5 +999,5 @@ struct RandomTaskProgressChartView: View {
 
 #Preview{
     
-    HCard().padding(.horizontal, 20)
+    VCard(course: Course(title: "Animations in SwiftUI", subtitle: "Build and animate an iOS app from scratch", caption: "20 sections - 3 hours", color: Color(#colorLiteral(red: 0.4705882353, green: 0.3137254902, blue: 0.9411764706, alpha: 1)), image: Image("Topic 1")))
 }
