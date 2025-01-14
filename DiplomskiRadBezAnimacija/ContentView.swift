@@ -263,7 +263,7 @@ struct MonthlySalesChartView: View {
                 AreaMark(
                     x: .value("Mjesec", $0.month, unit: .month),
                     y: .value("Prodaja", $0.sales)
-                )
+                ).interpolationMethod(.catmullRom) // Zaobljeni prelazi linije
                 .foregroundStyle(
                     .linearGradient(
                         Gradient(colors: [.blue.opacity(0.4), .clear]),
@@ -275,6 +275,7 @@ struct MonthlySalesChartView: View {
                     x: .value("Mjesec", $0.month, unit: .month),
                     y: .value("Prodaja", $0.sales)
                 )
+                .interpolationMethod(.catmullRom) // Zaobljeni prelazi linije
                 .foregroundStyle(.blue)
                 .shadow(color: .blue.opacity(0.3), radius: 15, x: 0, y: 30)
             }
@@ -386,6 +387,34 @@ class HighestSalesViewModel: ObservableObject {
         return "\(best.category) ima najviše prodaja sa \(String(format: "%.2f", percentage))% ukupnih prodaja."
     }
 }
+
+
+struct TaskProgress: Identifiable {
+    let id = UUID()
+    let label: String
+    let percentage: Double
+    let color: Color
+}
+
+
+class RandomProgressViewModel: ObservableObject {
+    @Published var completedPercentage: Double
+
+    init() {
+        // Generiše nasumičan procenat između 0% i 100% pri inicijalizaciji
+        self.completedPercentage = Double.random(in: 0...100)
+    }
+
+    // Podaci za `Chart`
+    var progressData: [TaskProgress] {
+        [
+            TaskProgress(label: "Completed", percentage: completedPercentage, color: .blue),
+            TaskProgress(label: "Remaining", percentage: 100.0 - completedPercentage, color: .blue.opacity(0.2))
+        ]
+    }
+}
+
+
 
 
 struct SectorMarkView: View {
@@ -831,33 +860,104 @@ struct VCard: View {
 }
 
 struct HCard: View {
-    var section = courseSections[0]
+    var section = courseSections[1]
     
     var body: some View {
-        HStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 8) {
+        HStack() {
+            VStack(alignment: .leading, spacing: 10) {
                 Text(section.title)
                     .font(.title2)
                     .fontWeight(.heavy)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    
+                    
                 Text(section.caption)
                     .font(.body)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Divider().frame(width: 1.5, height: 70)  // Vertikalni `Divider` dužine 100 pt i širine 2 pt
-                .background(Color.gray).opacity(0.5)
-                .padding(.trailing, 10)
-            section.image
+            .padding(30)
+            
+            Spacer()
+            RandomTaskProgressChartView(viewModel: RandomProgressViewModel(), chartColor: section.color.darker(by: 0.35))
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.vertical, 10)
+                .padding(.trailing, 20)
+            
         }
-        .padding(30)
-        .frame(maxWidth: .infinity, maxHeight: 110)
+        
+        
+        .frame(maxWidth: .infinity, maxHeight: 130)
         .foregroundColor(.white)
         .background(section.color)
         .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 }
 
+struct RandomTaskProgressChartView: View {
+    
+    @ObservedObject var viewModel: RandomProgressViewModel
+    var chartColor: Color
+    
+    var body: some View {
+        
+        // Prikaz grafikona sa procentom
+        Chart{
+            SectorMark(
+                angle: .value("Completed", viewModel.completedPercentage),
+                innerRadius: .ratio(0.60), // Donut oblik
+                angularInset: 1.5
+            )
+            .cornerRadius(3.0)
+            .foregroundStyle(chartColor)
+            
+            SectorMark(
+                angle: .value("Remaining", 100 - viewModel.completedPercentage),
+                innerRadius: .ratio(0.75), // Donut oblik
+                angularInset: 1.5
+            )
+            .foregroundStyle(chartColor.opacity(0.3))
+            
+            .cornerRadius(3.0)
+            
+        }
+        .frame(height: 100)
+        
+        
+        .chartBackground { chartProxy in
+            GeometryReader { geometry in
+                let frame = geometry[chartProxy.plotFrame!]
+                
+                //if let completedPercentage = viewModel.completedPercentage {
+                
+                Text("\(Int(viewModel.completedPercentage))%")
+                    .font(.body)
+                
+                
+                
+                
+                
+                    .multilineTextAlignment(.center)
+                    .frame(width: frame.width * 1) // Ograničimo širinu teksta unutar kruga
+                    .position(x: frame.midX, y: frame.midY) // Centriramo tekst unutar grafikona
+                    .foregroundStyle(chartColor)
+                    .fontWeight(.bold)
+                
+            }
+        }
+        
+        
+        //            Text("\(Int(viewModel.completedPercentage))% Completed")
+        //                .font(.headline)
+        //                .padding(.top)
+        
+        //.padding()
+    }
+}
+
 
 #Preview{
     
-    
+    HCard().padding(.horizontal, 20)
 }
