@@ -160,15 +160,14 @@ struct TabTwoView: View {
                 VStack {
                     DailySalesChartView(salesData: viewModel.salesData)
                         .padding()
-                    MonthlySalesChartView(salesViewModel: viewModel)
                     NavigationLink{
                         SalesPerBookCategoryView(viewModel: highestSalesViewModel)
                     } label: {
                         SectorMarkView(salesViewModel: highestSalesViewModel)
-                    }
+                    }.buttonStyle(PlainButtonStyle())
 //                SectorMarkView()
                         .padding()
-                    
+                    WeeklySalesChartView(salesViewModel: viewModel)
                 }
             }
             
@@ -249,68 +248,176 @@ struct MonthlyMinimizedSalesChartView: View {
             }
 }
 
-struct MonthlySalesChartView: View {
-    
+struct WeeklySale: Identifiable {
+    let id = UUID()
+    let week: Date
+    let sales: Int
+}
+
+struct WeeklySalesChartView: View {
     @ObservedObject var salesViewModel: SalesViewModel
-    
+
     var body: some View {
-        VStack {
-            Text("Mjesečna prodaja artikala")
+        VStack(spacing: 20) {
+            Text("Sedmična prodaja")
                 .font(.title2)
                 .padding(.bottom)
 
-            Chart(salesViewModel.salesByMonth) {
-                AreaMark(
-                    x: .value("Mjesec", $0.month, unit: .month),
-                    y: .value("Prodaja", $0.sales)
-                ).interpolationMethod(.catmullRom) // Zaobljeni prelazi linije
-                .foregroundStyle(
-                    .linearGradient(
-                        Gradient(colors: [.blue.opacity(0.4), .clear]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                LineMark(
-                    x: .value("Mjesec", $0.month, unit: .month),
+            Chart(salesViewModel.salesByWeek) {
+                BarMark(
+                    x: .value("Sedmica", $0.week, unit: .weekOfYear),
                     y: .value("Prodaja", $0.sales)
                 )
-                .interpolationMethod(.catmullRom) // Zaobljeni prelazi linije
                 .foregroundStyle(.blue)
-                .shadow(color: .blue.opacity(0.3), radius: 15, x: 0, y: 30)
+                .cornerRadius(5)
                 RuleMark(
-                    y: .value("Average Sales", salesViewModel.averageSales)
+                    y: .value("Prosjek prodaje", salesViewModel.averageWeeklySales)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6])) // Stil linije (debljina i isprekidanost)
-                .foregroundStyle(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1))) // Boja linije
-                .annotation(position: .top) { // Tekstualna oznaka iznad linije
-                    Text("Average: \(Int(salesViewModel.averageSales))")
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
+                .foregroundStyle(.gray)
+                .annotation(position: .top) {
+                    Text("Prosjek: \(Int(salesViewModel.averageWeeklySales))")
                         .font(.callout)
-                        .foregroundColor(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1)))
+                        .foregroundColor(.secondary)
                 }
             }
             .chartXAxis {
-                AxisMarks(values: .stride(by: .month)) { _ in
+                AxisMarks(values: .stride(by: .weekOfYear, count: 4)) { value in
                     AxisGridLine()
                     AxisTick()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated), centered: true)
-                         // Prikaz skraćenog naziva mjeseca (Jan, Feb...)
+                    AxisValueLabel(format: .dateTime.week().month().year(), centered: true)
                 }
             }
             .frame(height: 300)
             .padding()
         }
+        .padding()
+    }
+}
+
+struct MonthlySalesChartView: View {
+    
+    @ObservedObject var salesViewModel: SalesViewModel
+    let color: Color
+    enum ChartStyle: String, CaseIterable, Identifiable {
+        case bar = "Bar Mark"
+        case line = "Line Mark"
         
+        var id: Self { self }
+    }
+    
+    @State private var selectedChartStyle: ChartStyle = .bar
+    
+    var body: some View {
+        VStack {
+            HStack(spacing: 0) {
+                Text("Chart style:")
+                    .foregroundStyle(.secondary)
+                    
+                Picker("Chart Type", selection: $selectedChartStyle) {
+                    ForEach(ChartStyle.allCases) {
+                        Text($0.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(color)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            // Ovde koristimo funkcije za prikaz grafikona
+            ZStack {
+                if selectedChartStyle == .bar {
+                    barMarkView
+                        .transition(.opacity)
+                } else {
+                    lineMarkView
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: selectedChartStyle)
+            
+            Text("Average: \(Int(salesViewModel.averageSales))")
+                .font(.title3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(.secondary)
+                .padding(.top)
+            
+            Spacer()
+            
+        }
+        .padding()
+    }
+    
+    private var barMarkView: some View {
+        Chart(salesViewModel.salesByMonth) {
+            BarMark(
+                x: .value("Mjesec", $0.month, unit: .month),
+                y: .value("Prodaja", $0.sales)
+            )
+            .foregroundStyle(color)
+            .cornerRadius(5)
+            RuleMark(
+                y: .value("Average Sales", salesViewModel.averageSales)
+            )
+            .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
+            .foregroundStyle(color.darker(by: 0.25))
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .month)) { _ in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel(format: .dateTime.month(.abbreviated), centered: true)
+            }
+        }
+        .frame(height: 300)
+    }
+    
+    private var lineMarkView: some View {
+        Chart(salesViewModel.salesByMonth) {
+            AreaMark(
+                x: .value("Mjesec", $0.month, unit: .month),
+                y: .value("Prodaja", $0.sales)
+            ).interpolationMethod(.catmullRom)
+                .foregroundStyle(
+                    .linearGradient(
+                        Gradient(colors: [color.darker(by: 0.25).opacity(0.4), .clear]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            LineMark(
+                x: .value("Mjesec", $0.month, unit: .month),
+                y: .value("Prodaja", $0.sales)
+            )
+            .interpolationMethod(.catmullRom)
+            .foregroundStyle(color)
+            .shadow(color: color.darker(by: 0.25).opacity(0.3), radius: 15, x: 0, y: 30)
+            RuleMark(
+                y: .value("Average Sales", salesViewModel.averageSales)
+            )
+            .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
+            .foregroundStyle(color)
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .month)) { _ in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel(format: .dateTime.month(.abbreviated), centered: true)
+            }
+        }
+        .frame(height: 300)
     }
 }
 
 class SalesViewModel: ObservableObject {
     @Published var salesData: [Sale] = [] // Lista prodaja
     @Published var salesByMonth: [MonthlySale] = [] // Lista prodaja
+    @Published var salesByWeek: [WeeklySale] = [] // Lista prodaja po sedmicama
 
     init() {
         generateDummyData()
         generateRandomMonthlySalesData()
+        generateRandomWeeklySalesData()
     }
 
     func generateDummyData() {
@@ -342,6 +449,23 @@ class SalesViewModel: ObservableObject {
     var averageSales: Double {
         let totalSales = salesByMonth.reduce(0) { $0 + $1.sales } // Zbir svih prodaja
         return Double(totalSales) / Double(salesByMonth.count) // Prosjek
+        }
+    
+    func generateRandomWeeklySalesData() {
+            let calendar = Calendar.current
+            var currentDate = Date()
+
+            salesByWeek = (0..<52).map { _ in
+                let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate)) ?? Date()
+                let salesCount = Int.random(in: 200...1000) // Nasumični broj prodaja za sedmicu
+                currentDate = calendar.date(byAdding: .weekOfYear, value: -1, to: currentDate) ?? Date()
+                return WeeklySale(week: weekStart, sales: salesCount)
+            }.reversed() // Sortiranje od najstarijeg do najnovijeg
+        }
+
+        var averageWeeklySales: Double {
+            let totalSales = salesByWeek.reduce(0) { $0 + $1.sales }
+            return Double(totalSales) / Double(salesByWeek.count)
         }
 }
 
@@ -888,7 +1012,7 @@ struct VCard: View {
         
                 .sheet(isPresented: $isModalPresented) {
                     NavigationView{
-                        MonthlySalesChartView(salesViewModel: viewModel)
+                        MonthlySalesChartView(salesViewModel: viewModel, color: course.color)
                             .navigationTitle(course.title)// Modalni prikaz sa istim podacima
                             .navigationBarTitleDisplayMode(.inline)
                     }.presentationDragIndicator(.visible)
