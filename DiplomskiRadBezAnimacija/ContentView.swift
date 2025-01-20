@@ -105,7 +105,9 @@ struct TabOneView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 20) {
                         ForEach(courses) { course in
-                            VCard(course: course)
+                            let jsonName = course.chart
+                            let viewModel = SalesViewModel(jsonName: jsonName)
+                            VCard(course: course, viewModel: viewModel)
                         }
                     }
                     .padding(20)
@@ -153,7 +155,7 @@ struct TabTwoView: View {
     @Binding var isOnboardingPresented: Bool
     
     @StateObject var highestSalesViewModel = HighestSalesViewModel()
-    @StateObject private var viewModel = SalesViewModel()
+    @StateObject private var viewModel = SalesViewModel(jsonName: "first-course-monthly-sales")
     var body: some View {
         NavigationView{
             ScrollView(.vertical, showsIndicators: true){
@@ -167,7 +169,7 @@ struct TabTwoView: View {
                     }.buttonStyle(PlainButtonStyle())
 //                SectorMarkView()
                         .padding()
-                    WeeklySalesChartView(salesViewModel: viewModel, color: .blue)
+                    MonthlyMinMaxSalesChartView(viewModel: viewModel)
                 }
             }
             
@@ -222,7 +224,7 @@ struct MonthlyMinimizedSalesChartView: View {
                 .lineStyle(StrokeStyle(lineWidth: 2, dash: [6])) // Stil linije (debljina i isprekidanost)
                 .foregroundStyle(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1))) // Boja linije
                 .annotation(position: .top) { // Tekstualna oznaka iznad linije
-                    Text("Average: \(Int(salesViewModel.averageSales))")
+                    Text("Average: \(String(format: "%.1f", salesViewModel.averageSales))")
                         .font(.callout)
                         .foregroundColor(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1)))
                 }
@@ -458,6 +460,114 @@ struct VCardDetailsView: View{
     }
 
 
+import SwiftUI
+import Charts
+
+struct MonthlyMinMaxSalesChartView: View {
+    @ObservedObject var viewModel: SalesViewModel
+    @State private var rawSelectedDate: Date?
+    var selectedMinMax: MonthlyMinMaxSale? {
+        guard let rawSelectedDate else{ return nil}
+        return viewModel.monthlyMinMaxSales.first{
+            Calendar.current.isDate(rawSelectedDate, equalTo: $0.month, toGranularity: .month)
+        }
+    }
+    var body: some View {
+        VStack {
+            
+            
+            Chart{
+                if let selectedMinMax{
+                    RuleMark(x: .value("Selected", selectedMinMax.month, unit: .month))
+                        .foregroundStyle(Color.secondary).opacity(0.5)
+                        .annotation(position: .top, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)){
+                            VStack(spacing: 8) {
+                                        Text("\(selectedMinMax.maxSales)") // Max vrijednost
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                        Text("\(selectedMinMax.minSales)") // Min vrijednost
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding()
+                                    .background(
+                                        LinearGradient(
+                                            gradient: Gradient(stops: [
+                                                .init(color: Color.green, location: 0.5), // Zelena na gornjoj polovici
+                                                .init(color: Color.red, location: 0.5)   // Crvena na donjoj polovici
+                                            ]),
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                    .cornerRadius(10)
+                                    .shadow(radius: 5)
+                        }
+                }
+                ForEach(viewModel.monthlyMinMaxSales){ data in
+                    
+                    LineMark(
+                        x: .value("Month", data.month, unit: .month),
+                        y: .value("Max Sales", data.maxSales)
+                    )
+                    
+                    .foregroundStyle(.green)
+                    .symbol(Circle()) // Dodaje tačke na maksimalne vrijednosti
+                    .symbolSize(50) // Veličina tačaka
+                    .symbol(by: .value("Legend", "Maximum")) // Legenda za plavu liniju
+                    .opacity(rawSelectedDate == nil ? 1 : 0.5)
+                    
+                    LineMark(
+                        x: .value("Month", data.month, unit: .month),
+                        y: .value("Min Sales", data.minSales)
+                    )
+                    .foregroundStyle(.red)
+                    .symbol(Circle()) // Dodaje tačke na minimalne vrijednosti
+                    .symbolSize(50) // Veličina tačaka
+                    .symbol(by: .value("Legend", "Minimum")) // Legenda za ljubičastu liniju
+                    .opacity(rawSelectedDate == nil ? 1 : 0.5)
+                }
+            }
+            
+            .chartLegend(position: .bottom, spacing: 10) {
+                HStack {
+                    Circle()
+                        .fill(.green) // Boja za maksimalne vrijednosti
+                        .frame(width: 10, height: 10)
+                    Text("Max").foregroundStyle(Color.secondary).font(.footnote)
+
+                    Circle()
+                        .fill(.red) // Boja za minimalne vrijednosti
+                        .frame(width: 10, height: 10)
+                    Text("Min").foregroundColor(Color.secondary).font(.footnote)
+                }
+            }
+            .chartXSelection(value: $rawSelectedDate.animation(.easeInOut))
+            .onChange(of: selectedMinMax) { oldValue, newValue in
+                            if let newValue = newValue {
+                                print("Max Sales for \(newValue.month.formatted(.dateTime.month(.wide))): \(newValue.maxSales)")
+                            }
+                        }
+            .chartYAxis {
+                AxisMarks(position: .trailing) {
+                    AxisValueLabel()
+                    AxisGridLine()
+                        
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { value in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated))
+                    AxisGridLine()
+                        
+                }
+            }
+            .frame(height: 300)
+            .padding()
+        }
+    }
+}
+
 struct MonthlySalesChartView: View {
     
     @ObservedObject var salesViewModel: SalesViewModel
@@ -492,7 +602,7 @@ struct MonthlySalesChartView: View {
                 .frame(height: 1) // Tanak divider
                          // Horizontalni razmak
             HStack{
-                Text("Average: \(Int(salesViewModel.averageSales))")
+                Text("Average: \(String(format: "%.1f", salesViewModel.averageSales))")
                     .font(.body)
                     .frame(alignment: .leading)
                     .foregroundStyle(.secondary)
@@ -542,7 +652,7 @@ struct MonthlySalesChartView: View {
     }
     
     private var barMarkView: some View {
-        Chart(salesViewModel.salesByMonth) { data in
+        Chart(salesViewModel.salesByMonth, id: \.month) { data in
             BarMark(
                 x: .value("Mjesec", data.month, unit: .month),
                 y: .value("Prodaja", data.sales)
@@ -582,10 +692,10 @@ struct MonthlySalesChartView: View {
     }
     
     private var lineMarkView: some View {
-        Chart(salesViewModel.salesByMonth) {
+        Chart(salesViewModel.salesByMonth, id: \.month) { data in
             AreaMark(
-                x: .value("Mjesec", $0.month, unit: .month),
-                y: .value("Prodaja", $0.sales)
+                x: .value("Mjesec", data.month, unit: .month),
+                y: .value("Prodaja", data.sales)
             ).interpolationMethod(.catmullRom)
                 .foregroundStyle(
                     .linearGradient(
@@ -595,8 +705,8 @@ struct MonthlySalesChartView: View {
                     )
                 )
             LineMark(
-                x: .value("Mjesec", $0.month, unit: .month),
-                y: .value("Prodaja", $0.sales)
+                x: .value("Mjesec", data.month, unit: .month),
+                y: .value("Prodaja", data.sales)
             )
             .interpolationMethod(.catmullRom)
             .foregroundStyle(color)
@@ -622,13 +732,15 @@ struct MonthlySalesChartView: View {
 
 class SalesViewModel: ObservableObject {
     @Published var salesData: [Sale] = [] // Lista prodaja
-    @Published var salesByMonth: [MonthlySale] = [] // Lista prodaja
+    @Published var salesByMonth: [MonthlySale] = []
     @Published var salesByWeek: [WeeklySale] = [] // Lista prodaja po sedmicama
+    @Published var monthlyMinMaxSales: [MonthlyMinMaxSale] = []
 
-    init() {
+    init(jsonName: String) {
         generateDummyData()
-        generateRandomMonthlySalesData()
+        self.salesByMonth = loadMonthlySales(from: jsonName)
         generateRandomWeeklySalesData()
+        generateRandomMonthlyMinMaxData()
     }
 
     func generateDummyData() {
@@ -646,17 +758,23 @@ class SalesViewModel: ObservableObject {
             // Sortiramo podatke po datumu
             salesData.sort { $0.saleDate < $1.saleDate }
         }
-    func generateRandomMonthlySalesData() {
-            let calendar = Calendar.current
-            var currentDate = Date()
-            salesByMonth = (0..<12).map { _ in
-                let components = calendar.dateComponents([.year, .month], from: currentDate)
-                let monthStart = calendar.date(from: components) ?? Date()
-                let salesCount = Int.random(in: 100...500) // Nasumični broj prodaja
-                currentDate = calendar.date(byAdding: .month, value: -1, to: currentDate) ?? Date()
-                return MonthlySale(month: monthStart, sales: salesCount)
-            }.reversed() // Redoslijed od najstarijeg do najnovijeg
+    func loadMonthlySales(from fileName: String) -> [MonthlySale] {
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: "json") else {
+            print("JSON file not found.")
+            return []
         }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let sales = try decoder.decode([MonthlySale].self, from: data)
+            return sales
+        } catch {
+            print("Error decoding JSON: \(error)")
+            return []
+        }
+    }
     var averageSales: Double {
         let totalSales = salesByMonth.reduce(0) { $0 + $1.sales } // Zbir svih prodaja
         return Double(totalSales) / Double(salesByMonth.count) // Prosjek
@@ -682,10 +800,25 @@ class SalesViewModel: ObservableObject {
             let totalSales = salesByWeek.reduce(0) { $0 + $1.sales }
             return Double(totalSales) / Double(salesByWeek.count)
         }
+    
+    func generateRandomMonthlyMinMaxData() {
+            let calendar = Calendar.current
+            let currentDate = Date()
+
+            for monthOffset in 0..<12 {
+                if let monthDate = calendar.date(byAdding: .month, value: -monthOffset, to: currentDate) {
+                    let maxSales = Int.random(in: 5000...20000) // Maksimalna prodaja
+                    let minSales = Int.random(in: 1000...5000)  // Minimalna prodaja
+                    monthlyMinMaxSales.append(MonthlyMinMaxSale(month: monthDate, maxSales: maxSales, minSales: minSales))
+                }
+            }
+
+            // Sortiramo podatke po mjesecima
+        monthlyMinMaxSales.sort { $0.month < $1.month }
+        }
 }
 
-struct MonthlySale: Identifiable {
-    let id = UUID()
+struct MonthlySale: Decodable {
     let month: Date
     let sales: Int
 }
@@ -701,6 +834,13 @@ struct HighestCourseSale: Identifiable {
     let category: String
     let sales: Double
     let color: Color
+}
+
+struct MonthlyMinMaxSale: Identifiable, Equatable {
+    let id = UUID()
+    let month: Date
+    let maxSales: Int
+    let minSales: Int
 }
 
 class HighestSalesViewModel: ObservableObject {
@@ -928,13 +1068,13 @@ struct CustomSalesPerBookCategoryBarChartView: View {
 
 struct FullSizePieChartView: View {
     @ObservedObject var salesViewModel: HighestSalesViewModel
-
+    
     var body: some View {
         VStack(spacing: 20) {
             
-//                .font(.headline)
-//                .padding(.bottom, 10)
-
+            //                .font(.headline)
+            //                .padding(.bottom, 10)
+            
             Chart(salesViewModel.totalSalesPerCategory, id: \.category) { data in
                 SectorMark(
                     angle: .value("Prodaja", data.sales),
@@ -958,7 +1098,7 @@ struct FullSizePieChartView: View {
                                 .frame(width: 12, height: 12)
                                 .foregroundStyle(item.color)
                                 .opacity(index == 0 ? 1 : 0.3)
-                                // Boja na osnovu kategorije
+                            // Boja na osnovu kategorije
                         }
                         .padding(.trailing)
                     }
@@ -967,7 +1107,7 @@ struct FullSizePieChartView: View {
             .chartBackground { chartProxy in
                 GeometryReader { geometry in
                     let frame = geometry[chartProxy.plotFrame!]
-
+                    
                     if let bestSellingCategory = salesViewModel.bestSellingCategory {
                         VStack(spacing: 5) {
                             Text("Most Sold Course")
@@ -1068,6 +1208,7 @@ struct DailySalesChartView: View {
 
 
 
+
 struct TabThreeView: View {
     @Binding var isMenuOpen: Bool
     @Binding var isOnboardingPresented: Bool
@@ -1160,7 +1301,7 @@ struct TabFiveView: View {
 
 struct VCard: View {
     var course: Course
-    @ObservedObject private var viewModel = SalesViewModel()
+    @ObservedObject var viewModel: SalesViewModel
     @State private var isModalPresented = false
     var body: some View {
         //NavigationLink(destination: MonthlySalesChartView(salesViewModel: viewModel)){
@@ -1353,5 +1494,5 @@ struct RandomTaskProgressChartView: View {
 
 #Preview{
     
-    MonthlySalesChartView(salesViewModel: SalesViewModel(), color: .blue)
+    MonthlySalesChartView(salesViewModel: SalesViewModel(jsonName: "blabla"), color: .blue)
 }

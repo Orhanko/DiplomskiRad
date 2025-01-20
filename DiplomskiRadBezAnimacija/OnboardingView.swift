@@ -13,18 +13,17 @@ struct OnboardingView: View {
     @Environment(\.colorScheme) var colorScheme
     
     var naslov = """
-                 Learn
-                 design
-                 & code
+                 Visualize
+                 data flow
                  """
     
     var body: some View {
         ZStack{
         VStack(alignment: .leading, spacing: 20) {
             
-            Spacer()
-            Spacer()
-            Spacer()
+            
+            
+            
             Spacer()
             
             
@@ -57,7 +56,7 @@ struct OnboardingView: View {
                     .frame(width: 36, height: 36) // Ukupne dimenzije dugmeta
                     .contentShape(Circle())
                     .padding()
-                    .padding(.top, 10)
+                    .padding(.top, 80)
                     
                     Spacer()
                 }//.background(.red) // Površina klika
@@ -65,7 +64,7 @@ struct OnboardingView: View {
             }.frame(maxWidth: .infinity, alignment: .leading)
             //.background(.green)
                 .padding(.top, 20)
-            Text("Don’t skip design. Learn design and code, by building real apps with React and Swift. Complete courses about the best tools.")
+            Text("Nesto sto bise trebalo napisati o kratkom opisu za sta na sluzi ova palikacija i sta dobijamo sa pristupom ")
                 .opacity(0.7)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .font(.system(size: 17))
@@ -100,7 +99,7 @@ struct OnboardingView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             
             .padding(.trailing, 50)
-            Text("Purchase includes access to 30+ courses, 240+ premium tutorials, 120+ hours of videos, source files and certificates.")
+            Text("Forgot password? Contact server administator")
                 .font(.footnote)
                 .opacity(0.7)
                 .padding(.leading, 10)
