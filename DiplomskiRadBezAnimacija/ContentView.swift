@@ -373,13 +373,17 @@ struct WeeklySalesChartView: View {
         }
     
     private var barMarkView: some View {
-            Chart(salesViewModel.salesByWeek, id: \.week) { data in
+        VStack(alignment: .leading, spacing: 5){
+            Text("Bla")
+                .font(.footnote)
+                .foregroundStyle(.clear)
+        Chart(salesViewModel.salesByWeek, id: \.week) { data in
             BarMark(
                 x: .value("Sedmica", data.week, unit: .weekOfYear),
                 y: .value("Prodaja", data.sales)
             )
             
-
+            
             
             
             .foregroundStyle(color)
@@ -405,47 +409,52 @@ struct WeeklySalesChartView: View {
         .chartXVisibleDomain(length: 3600 * 24 * 7 * 9) // Prikazuje 20 sedmica (umjesto samo 8)
         .frame(height: 300)
     }
+    }
     
     private var lineMarkView: some View {
-        
-        Chart(salesViewModel.salesByWeek, id: \.week) { data in
-            AreaMark(
-                x: .value("Sedmica", data.week, unit: .weekOfYear),
-                y: .value("Prodaja", data.sales)
-            ).interpolationMethod(.catmullRom)
-                .foregroundStyle(
-                    .linearGradient(
-                        Gradient(colors: [color.darker(by: 0.25).opacity(0.4), .clear]),
-                        startPoint: .top,
-                        endPoint: .bottom
+        VStack(alignment: .leading, spacing: 5){
+            Text("Bla")
+                .font(.footnote)
+                .foregroundStyle(.clear)
+            Chart(salesViewModel.salesByWeek, id: \.week) { data in
+                AreaMark(
+                    x: .value("Sedmica", data.week, unit: .weekOfYear),
+                    y: .value("Prodaja", data.sales)
+                ).interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        .linearGradient(
+                            Gradient(colors: [color.darker(by: 0.25).opacity(0.4), .clear]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
+                LineMark(
+                    x: .value("Sedmica", data.week, unit: .weekOfYear),
+                    y: .value("Prodaja", data.sales)
                 )
-            LineMark(
-                x: .value("Sedmica", data.week, unit: .weekOfYear),
-                y: .value("Prodaja", data.sales)
-            )
-            .interpolationMethod(.catmullRom)
-            .foregroundStyle(color)
-            .shadow(color: color.darker(by: 0.25).opacity(0.3), radius: 15, x: 0, y: 30)
-            if showAverageLine{
-                RuleMark(
-                    y: .value("Average Sales", salesViewModel.averageWeeklySales)
-                )
-                .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
+                .interpolationMethod(.catmullRom)
                 .foregroundStyle(color)
+                .shadow(color: color.darker(by: 0.25).opacity(0.3), radius: 15, x: 0, y: 30)
+                if showAverageLine{
+                    RuleMark(
+                        y: .value("Average Sales", salesViewModel.averageWeeklySales)
+                    )
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
+                    .foregroundStyle(color)
+                }
             }
-        }
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .month, count: 1)) { _ in
-                AxisGridLine()
-                AxisTick()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).year())
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month, count: 1)) { _ in
+                    AxisGridLine()
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).year())
+                }
             }
+            .chartScrollableAxes(.horizontal)
+            .chartScrollPosition(x: $scrollPosition)
+            .chartXVisibleDomain(length: 3600 * 24 * 7 * 9) // Prikazuje 20 sedmica (umjesto samo 8)
+            .frame(height: 300)
         }
-        .chartScrollableAxes(.horizontal)
-        .chartScrollPosition(x: $scrollPosition)
-        .chartXVisibleDomain(length: 3600 * 24 * 7 * 9) // Prikazuje 20 sedmica (umjesto samo 8)
-        .frame(height: 300)
     }
 }
 
@@ -476,7 +485,7 @@ struct VCardDetailsView: View{
                 }
             }
             .pickerStyle(.segmented)
-            .padding(.bottom)
+            .padding(.bottom, 10)
             ZStack {
                 if selectedChartStyle == .month {
                     MonthlySalesChartView(salesViewModel: viewModel, color: color)
@@ -633,6 +642,7 @@ struct MonthlyMinMaxSalesChartView: View {
 struct WeeklyMinMaxSalesChartView: View {
     @ObservedObject var viewModel: SalesViewModel
     @State private var rawSelectedDate: Date?
+    @State private var scrollPosition: TimeInterval = 0
     var selectedMinMaxIndex: Int? {
         guard let selectedMinMax else { return nil }
         return viewModel.weeklyMinMaxSales.firstIndex(where: {
@@ -651,6 +661,11 @@ struct WeeklyMinMaxSalesChartView: View {
             chartView
                 .frame(height: 300)
                 .padding()
+                .onAppear {
+                            if let lastDate = viewModel.weeklyMinMaxSales.last?.week {
+                                scrollPosition = lastDate.timeIntervalSinceReferenceDate - 3600 * 24 * 7 * 5 // Pozicionira 6 sedmica unazad
+                            }
+                        }
         }
         .onAppear {
             for sale in viewModel.weeklyMinMaxSales {
@@ -717,6 +732,7 @@ struct WeeklyMinMaxSalesChartView: View {
         
         .chartScrollableAxes(.horizontal)
         .chartXVisibleDomain(length: 6 * 7 * 24 * 60 * 60)
+        .chartScrollPosition(x: $scrollPosition)
         .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.6))
         // Prikazuje 12 sedmica
         .chartYAxis {
@@ -876,6 +892,10 @@ struct MonthlySalesChartView: View {
     }
     
     private var barMarkView: some View {
+        VStack(alignment: .leading, spacing: 5){
+            Text("Bla")
+                .font(.footnote)
+                .foregroundStyle(.clear)
         Chart(salesViewModel.salesByMonth, id: \.month) { data in
             BarMark(
                 x: .value("Mjesec", data.month, unit: .month),
@@ -898,12 +918,12 @@ struct MonthlySalesChartView: View {
             .foregroundStyle(color)
             .cornerRadius(5)
             if showAverageLine{
-            RuleMark(
-                y: .value("Average Sales", salesViewModel.averageSales)
-            )
-            .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
-            .foregroundStyle(color.darker(by: 0.25))
-        }
+                RuleMark(
+                    y: .value("Average Sales", salesViewModel.averageSales)
+                )
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
+                .foregroundStyle(color.darker(by: 0.25))
+            }
         }
         .chartXAxis {
             AxisMarks(values: .stride(by: .month)) { _ in
@@ -914,8 +934,13 @@ struct MonthlySalesChartView: View {
         }
         .frame(height: 300)
     }
+    }
     
     private var lineMarkView: some View {
+        VStack(alignment: .leading, spacing: 5){
+            Text("Bla")
+                .font(.footnote)
+                .foregroundStyle(.clear)
         Chart(salesViewModel.salesByMonth, id: \.month) { data in
             AreaMark(
                 x: .value("Mjesec", data.month, unit: .month),
@@ -951,6 +976,7 @@ struct MonthlySalesChartView: View {
             }
         }
         .frame(height: 300)
+    }
     }
 }
 
@@ -1393,58 +1419,166 @@ struct FullSizePieChartView: View {
 
 
 struct DailySalesChartView: View {
-
-    let salesData: [Sale]
     
-
+    let salesData: [Sale]
+    //let color: Color
+    
     init(salesData: [Sale]) {
         self.salesData = salesData
-
+        
         guard let lastDate = salesData.last?.saleDate else { return }
-            self._scrollPosition = State(initialValue: lastDate.timeIntervalSinceReferenceDate)
-
+        self._scrollPosition = State(initialValue: lastDate.timeIntervalSinceReferenceDate)
+        
     }
-
+    
     let numberOfDisplayedDays = 31
-
+    
     @State var scrollPosition: TimeInterval = TimeInterval()
-
+    
     var scrollPositionStart: Date {
         Date(timeIntervalSinceReferenceDate: scrollPosition)
     }
-
+    
     var scrollPositionEnd: Date {
         scrollPositionStart.addingTimeInterval(3600 * 24 * 30)
     }
-
+    
     var scrollPositionString: String {
         scrollPositionStart.formatted(.dateTime.month().day().year())
     }
-
+    
     var scrollPositionEndString: String {
         scrollPositionEnd.formatted(.dateTime.month().day().year())
     }
-
+    enum ChartStyle: String, CaseIterable, Identifiable {
+        case bar = "Bar Mark"
+        case line = "Line Mark"
+        
+        var id: Self { self }
+    }
+    
+    @State private var selectedChartStyle: ChartStyle = .bar
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-
+        VStack {
+            
+            
+            ZStack {
+                if selectedChartStyle == .bar {
+                    barMarkView
+                        .transition(.opacity)
+                } else {
+                    lineMarkView
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: selectedChartStyle)
+            
+            Divider()
+                .background(Color.secondary.opacity(0.5)) // Boja slična placeholderu
+                .frame(height: 1) // Tanak divider
+            // Horizontalni razmak
+            HStack{
+                Text("Average: 123")
+                    .font(.body)
+                    .frame(alignment: .leading)
+                    .foregroundStyle(.secondary)
+                
+                    .fixedSize(horizontal: false, vertical: false)
+                Spacer()
+                HStack(spacing: 0) {
+                    Text("Chart style:")
+                        .foregroundStyle(.secondary)
+                    
+                    Picker("Chart Type", selection: $selectedChartStyle) {
+                        ForEach(ChartStyle.allCases) {
+                            Text($0.rawValue)
+                        }
+                    }
+                    .frame(alignment: .trailing)
+                    .pickerStyle(.menu)
+                    .tint(.blue)
+                    
+                }
+                
+            }
+            .frame(maxWidth: .infinity)
+            Divider()
+                .background(Color.secondary.opacity(0.5)) // Boja slična placeholderu
+                .frame(height: 1) // Tanak divider
+            // Horizontalni razmak
+                .padding(.horizontal, -16)
+        }
+    }
+    
+    private var barMarkView: some View {
+        VStack(alignment: .leading, spacing: 5){
             Text("\(scrollPositionString) – \(scrollPositionEndString)")
-                .font(.callout)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
-
             Chart(salesData, id: \.saleDate) {
-                LineMark(
+                BarMark(
                     x: .value("Day", $0.saleDate, unit: .day),
                     y: .value("Sales", $0.quantity)
                 )
+                
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 10)) { value in
                     AxisGridLine() // Prikazuje linije svake 7. oznake (jednom sedmično)
                     AxisTick()
                     AxisValueLabel(format: .dateTime.day().month(.abbreviated))
-                        
-                        
+                    
+                    
+                }
+            }
+            .chartScrollableAxes(.horizontal)
+            
+            .chartXVisibleDomain(length: 3600 * 24 * Double(numberOfDisplayedDays))
+            // shows 30 days
+            // snap to begining of month when release scrolling
+            .chartScrollTargetBehavior(
+                .valueAligned(
+                    matching: .init(hour: 0),
+                    majorAlignment: .matching(.init(day: 1))))
+            .chartScrollPosition(x: $scrollPosition)
+            .frame(height: 300)
+        }
+    }
+    
+    private var lineMarkView: some View{
+        VStack(alignment: .leading, spacing: 5){
+            Text("\(scrollPositionString) – \(scrollPositionEndString)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Chart(salesData, id: \.saleDate) {
+//                AreaMark(x: .value("Day", $0.saleDate, unit: .day),
+//                         y: .value("Sales", $0.quantity)
+//                     ).interpolationMethod(.catmullRom)
+//                    .foregroundStyle(
+//                        .linearGradient(
+//                            Gradient(colors: [.blue, .clear]),
+//                            startPoint: .top,
+//                            endPoint: .bottom
+//                        )
+//                    )
+
+                
+                LineMark(
+                    x: .value("Day", $0.saleDate, unit: .day),
+                    y: .value("Sales", $0.quantity)
+                    
+                ).foregroundStyle(.blue)
+                .interpolationMethod(.catmullRom)
+                    .shadow(color: .blue, radius: 4, x: 0, y: 5)
+                
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 10)) { value in
+                    AxisGridLine() // Prikazuje linije svake 7. oznake (jednom sedmično)
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                    
+                    
                 }
             }
             .chartScrollableAxes(.horizontal)
@@ -2013,5 +2147,5 @@ struct PDFTestView: View {
 
 #Preview{
     
-    MonthlySalesChartView(salesViewModel: SalesViewModel(jsonName: "blabla"), color: .blue)
+    
 }
