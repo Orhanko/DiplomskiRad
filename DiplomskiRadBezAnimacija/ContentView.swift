@@ -170,6 +170,7 @@ struct TabTwoView: View {
 //                SectorMarkView()
                         .padding()
                     MonthlyMinMaxSalesChartView(viewModel: viewModel)
+                    WeeklyMinMaxSalesChartView(viewModel: viewModel)
                 }
             }
             
@@ -256,6 +257,12 @@ struct WeeklySale: Identifiable {
     let id = UUID()
     let week: Date
     let sales: Int
+    
+    var formattedWeek: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM dd, yyyy" // Format datuma
+        return formatter.string(from: week)
+    }
 }
 
 struct WeeklySalesChartView: View {
@@ -322,6 +329,23 @@ struct WeeklySalesChartView: View {
             
             Toggle("Show average line", isOn: $showAverageLine)
             
+            List {
+                // Header sekcija
+                Section(header: headerView) {
+                    ForEach(salesViewModel.salesByWeek.reversed()) { sale in
+                        HStack {
+                            Text(sale.formattedWeek)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Text("\(sale.sales)")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+            }
+            .listStyle(PlainListStyle()) // Ili .plain za jednostavniji stil
+            // Pozadina celog prikaza
+            .frame(maxHeight: 320)
+            
             
                 
         }
@@ -335,8 +359,21 @@ struct WeeklySalesChartView: View {
         
         
     }
+    
+    private var headerView: some View {
+            HStack {
+                Text("Week")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("Sales")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.bottom, 2)
+        }
+    
     private var barMarkView: some View {
-        Chart(salesViewModel.salesByWeek, id: \.week) { data in
+            Chart(salesViewModel.salesByWeek, id: \.week) { data in
             BarMark(
                 x: .value("Sedmica", data.week, unit: .weekOfYear),
                 y: .value("Prodaja", data.sales)
@@ -394,7 +431,7 @@ struct WeeklySalesChartView: View {
                 RuleMark(
                     y: .value("Average Sales", salesViewModel.averageWeeklySales)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
+                .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
                 .foregroundStyle(color)
             }
         }
@@ -472,6 +509,12 @@ struct MonthlyMinMaxSalesChartView: View {
             Calendar.current.isDate(rawSelectedDate, equalTo: $0.month, toGranularity: .month)
         }
     }
+    var selectedMinMaxIndex: Int? {
+        guard let selectedMinMax else { return nil }
+        return viewModel.monthlyMinMaxSales.firstIndex(where: {
+            Calendar.current.isDate($0.month, equalTo: selectedMinMax.month, toGranularity: .month)
+        })
+    }
     var body: some View {
         VStack {
             
@@ -480,7 +523,23 @@ struct MonthlyMinMaxSalesChartView: View {
                 if let selectedMinMax{
                     RuleMark(x: .value("Selected", selectedMinMax.month, unit: .month))
                         .foregroundStyle(Color.secondary).opacity(0.5)
-                        .annotation(position: .top, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)){
+                        .annotation(
+                            position: .top,
+                            alignment: {
+                                guard let index = selectedMinMaxIndex else { return .center }
+                                let totalCount = viewModel.monthlyMinMaxSales.count
+
+                                if index < 1 {
+                                    return .leading // Pomjeri lijevo ako je među prve dvije sedmice
+                                } else if index > totalCount - 2 {
+                                    return .trailing // Pomjeri desno ako je među zadnje dvije sedmice
+                                } else {
+                                    return .center // U svim ostalim slučajevima ostaje centrirano
+                                }
+                            }(),
+                            spacing: 10,
+                            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+                        ){
                             VStack(spacing: 8) {
                                         Text("\(selectedMinMax.maxSales)") // Max vrijednost
                                             .font(.headline)
@@ -502,6 +561,8 @@ struct MonthlyMinMaxSalesChartView: View {
                                     )
                                     .cornerRadius(10)
                                     .shadow(radius: 5)
+                                    .offset(x: selectedMinMaxIndex == 0 ? -10 : (selectedMinMaxIndex == viewModel.monthlyMinMaxSales.count - 1 ? 10 : 0))
+                            
                         }
                 }
                 ForEach(viewModel.monthlyMinMaxSales){ data in
@@ -542,7 +603,7 @@ struct MonthlyMinMaxSalesChartView: View {
                     Text("Min").foregroundColor(Color.secondary).font(.footnote)
                 }
             }
-            .chartXSelection(value: $rawSelectedDate.animation(.easeInOut))
+            .chartXSelection(value: $rawSelectedDate.animation(.easeInOut(duration:0.2)))
             .onChange(of: selectedMinMax) { oldValue, newValue in
                             if let newValue = newValue {
                                 print("Max Sales for \(newValue.month.formatted(.dateTime.month(.wide))): \(newValue.maxSales)")
@@ -555,6 +616,7 @@ struct MonthlyMinMaxSalesChartView: View {
                         
                 }
             }
+            .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.6))
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month)) { value in
                     AxisValueLabel(format: .dateTime.month(.abbreviated))
@@ -564,6 +626,168 @@ struct MonthlyMinMaxSalesChartView: View {
             }
             .frame(height: 300)
             .padding()
+        }
+    }
+}
+
+struct WeeklyMinMaxSalesChartView: View {
+    @ObservedObject var viewModel: SalesViewModel
+    @State private var rawSelectedDate: Date?
+    var selectedMinMaxIndex: Int? {
+        guard let selectedMinMax else { return nil }
+        return viewModel.weeklyMinMaxSales.firstIndex(where: {
+            Calendar.current.isDate($0.week, equalTo: selectedMinMax.week, toGranularity: .weekOfYear)
+        })
+    }
+    var selectedMinMax: WeeklyMinMaxSale? {
+        guard let rawSelectedDate else { return nil }
+        return viewModel.weeklyMinMaxSales.first {
+            Calendar.current.isDate(rawSelectedDate, equalTo: $0.week, toGranularity: .weekOfYear)
+        }
+    }
+
+    var body: some View {
+        VStack {
+            chartView
+                .frame(height: 300)
+                .padding()
+        }
+        .onAppear {
+            for sale in viewModel.weeklyMinMaxSales {
+                print("📊 Week: \(sale.week), Max: \(sale.maxSales), Min: \(sale.minSales)")
+            }
+        }
+    }
+
+    private var chartView: some View {
+        Chart {
+            if let selectedMinMax {
+                // ✅ RuleMark sada nosi anotaciju
+                RuleMark(x: .value("Selected", selectedMinMax.week, unit: .weekOfYear))
+                    .foregroundStyle(Color.secondary.opacity(0.5))
+                    .annotation(
+                        position: .top,
+                        alignment: {
+                            guard let index = selectedMinMaxIndex else { return .center }
+                            let totalCount = viewModel.weeklyMinMaxSales.count
+
+                            if index < 1 {
+                                return .leading // Pomjeri lijevo ako je među prve dvije sedmice
+                            } else if index > totalCount - 2 {
+                                return .trailing // Pomjeri desno ako je među zadnje dvije sedmice
+                            } else {
+                                return .center // U svim ostalim slučajevima ostaje centrirano
+                            }
+                        }(),
+                        spacing: 10,
+                        overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+                    ) {
+                        annotationView(for: selectedMinMax)
+                                            }
+            }
+
+            // Prikaz svih podataka
+            ForEach(viewModel.weeklyMinMaxSales) { data in
+                LineMark(
+                    x: .value("Week", data.week, unit: .weekOfYear),
+                    y: .value("Max Sales", data.maxSales)
+                )
+                .foregroundStyle(.green)
+                .symbol(Circle())
+                .symbolSize(50)
+                .symbol(by: .value("Legend", "Maximum"))
+                .opacity(rawSelectedDate == nil ? 1 : 0.5)
+
+                LineMark(
+                    x: .value("Week", data.week, unit: .weekOfYear),
+                    y: .value("Min Sales", data.minSales)
+                )
+                .foregroundStyle(.red)
+                .symbol(Circle())
+                .symbolSize(50)
+                .symbol(by: .value("Legend", "Minimum"))
+                .opacity(rawSelectedDate == nil ? 1 : 0.5)
+            }
+        }
+        .chartLegend(position: .bottom, spacing: 10) { legendView }
+        .chartXSelection(value: $rawSelectedDate.animation(.easeInOut(duration: 0.2)))
+//        .onChange(of: rawSelectedDate) { oldValue, newValue in
+//            print("📅 rawSelectedDate promijenjen: \(String(describing: newValue))")
+//        }
+        
+        .chartScrollableAxes(.horizontal)
+        .chartXVisibleDomain(length: 6 * 7 * 24 * 60 * 60)
+        .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.6))
+        // Prikazuje 12 sedmica
+        .chartYAxis {
+            AxisMarks(position: .trailing) {
+                AxisValueLabel()
+                AxisGridLine()
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .weekOfYear, count: 1)) { value in
+                if let dateValue = value.as(Date.self) {
+                    AxisValueLabel(centered: true) {
+                        Text(weekLabel(for: dateValue))
+                    }
+                }
+                AxisGridLine()
+            }
+        }
+                
+        
+
+        
+    }
+    
+    
+    
+    private func annotationView(for data: WeeklyMinMaxSale) -> some View {
+        VStack(spacing: 8) {
+            Text("\(data.maxSales)")
+                .font(.headline)
+                .foregroundColor(.white)
+            Text("\(data.minSales)")
+                .font(.headline)
+                .foregroundColor(.white)
+        }
+        .padding()
+        .background(
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: Color.green, location: 0.5),
+                    .init(color: Color.red, location: 0.5)
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .cornerRadius(10)
+        .shadow(radius: 5)
+        .offset(x: selectedMinMaxIndex == 0 ? -25 : (selectedMinMaxIndex == viewModel.weeklyMinMaxSales.count - 1 ? 25 : 0))
+    }
+
+    
+    func weekLabel(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d" // Skraceni format: Jan 5, Feb 12, itd.
+        let dateString = formatter.string(from: date)
+        
+        return "\(dateString)"
+    }
+    
+    private var legendView: some View {
+        HStack {
+            Circle()
+                .fill(.green)
+                .frame(width: 10, height: 10)
+            Text("Max").foregroundStyle(Color.secondary).font(.footnote)
+
+            Circle()
+                .fill(.red)
+                .frame(width: 10, height: 10)
+            Text("Min").foregroundColor(Color.secondary).font(.footnote)
         }
     }
 }
@@ -735,12 +959,15 @@ class SalesViewModel: ObservableObject {
     @Published var salesByMonth: [MonthlySale] = []
     @Published var salesByWeek: [WeeklySale] = [] // Lista prodaja po sedmicama
     @Published var monthlyMinMaxSales: [MonthlyMinMaxSale] = []
+    @Published var weeklyMinMaxSales: [WeeklyMinMaxSale] = []
+    
 
     init(jsonName: String) {
         generateDummyData()
         self.salesByMonth = loadMonthlySales(from: jsonName)
         generateRandomWeeklySalesData()
         generateRandomMonthlyMinMaxData()
+        generateRandomWeeklyMinMaxData()
     }
 
     func generateDummyData() {
@@ -816,6 +1043,29 @@ class SalesViewModel: ObservableObject {
             // Sortiramo podatke po mjesecima
         monthlyMinMaxSales.sort { $0.month < $1.month }
         }
+    
+    func generateRandomWeeklyMinMaxData() {
+        let calendar = Calendar.current
+        let currentDate = Date()
+
+        // Prva cijela sedmica unazad
+        guard let firstFullWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate)) else {
+            return
+        }
+
+        weeklyMinMaxSales.removeAll() // Čistimo niz prije punjenja novih podataka
+
+        for weekOffset in 0..<52 {
+            if let weekDate = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: firstFullWeek) {
+                let maxSales = Int.random(in: 5000...20000) // Maksimalna prodaja
+                let minSales = Int.random(in: 1000...5000)  // Minimalna prodaja
+                weeklyMinMaxSales.append(WeeklyMinMaxSale(week: weekDate, maxSales: maxSales, minSales: minSales))
+            }
+        }
+
+        // Sortiranje od najstarije do najnovije sedmice
+        weeklyMinMaxSales.sort { $0.week < $1.week }
+    }
 }
 
 struct MonthlySale: Decodable {
@@ -839,6 +1089,13 @@ struct HighestCourseSale: Identifiable {
 struct MonthlyMinMaxSale: Identifiable, Equatable {
     let id = UUID()
     let month: Date
+    let maxSales: Int
+    let minSales: Int
+}
+
+struct WeeklyMinMaxSale: Identifiable {
+    let id = UUID()
+    let week: Date
     let maxSales: Int
     let minSales: Int
 }
@@ -1214,7 +1471,8 @@ struct TabThreeView: View {
     @Binding var isOnboardingPresented: Bool
     var body: some View {
         NavigationView{
-            Text("Nesto 3")
+            PDFTestView()
+            Spacer()
             .navigationBarItems(
                 leading: Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -1369,30 +1627,30 @@ struct VCard: View {
         .sheet(isPresented: $isModalPresented) {
             NavigationView{
                 //ScrollView{
-                //VStack{
+                VStack{
                 VCardDetailsView(color: course.color, viewModel: viewModel)
                     .navigationTitle(course.title)// Modalni prikaz sa istim podacima
                     .navigationBarTitleDisplayMode(.inline)
-                //}
+                }
                 
-                //                                .toolbar {
-                //                                            ToolbarItem(placement: .navigationBarTrailing) {
-                //                                                Button(action: {
-                //                                                    isModalPresented = false
-                //                                                }) {
-                //                                                    Image(systemName: "xmark.circle")
-                //                                                }
-                //                                            }
-                //                                        }
+                                                .toolbar {
+                                                            ToolbarItem(placement: .navigationBarTrailing) {
+                                                                Button(action: {
+                                                                    isModalPresented = false
+                                                                }) {
+                                                                    Image(systemName: "xmark.circle")
+                                                                }
+                                                            }
+                                                        }
                 //}
             }.presentationDragIndicator(.visible)
             
-            //.interactiveDismissDisabled(true)
+            .interactiveDismissDisabled(true)
         }
 
-        //}
+        }
     }
-}
+
 
 struct HCard: View {
     var section = courseSections[1]
@@ -1491,6 +1749,267 @@ struct RandomTaskProgressChartView: View {
     }
 }
 
+import PDFKit
+
+ 
+
+class PDFTableGenerator {
+    static func generatePDF(salesData: [WeeklySale], fileName: String) -> URL? {
+        let pdfMetaData = [
+            kCGPDFContextCreator: "ImeAplikacije",
+            kCGPDFContextAuthor: "ImeAplikacije",
+            kCGPDFContextTitle: "Weekly Sales Report"
+        ]
+        let format = UIGraphicsPDFRendererFormat()
+        format.documentInfo = pdfMetaData as [String: Any]
+
+        let pageWidth = 612.0
+        let pageHeight = 792.0
+        let margin = 40.0
+        let contentWidth = pageWidth - 2 * margin
+        let rowHeight = 30.0
+        let columnWidths = [contentWidth / 2, contentWidth / 2]
+
+        let pdfRenderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight), format: format)
+
+        func drawTableRow(context: UIGraphicsPDFRendererContext, sale: WeeklySale, columnWidths: [CGFloat], margin: CGFloat, yPosition: CGFloat, isOddRow: Bool) {
+            // Naizmenične boje za redove
+            let rowBackgroundColor = isOddRow ? UIColor.lightGray.withAlphaComponent(0.3) : UIColor.lightGray.withAlphaComponent(0.1)
+            rowBackgroundColor.setFill()
+            UIBezierPath(rect: CGRect(x: margin, y: yPosition, width: columnWidths.reduce(0, +), height: 30)).fill()
+
+            // Tekst u redu
+            let week = sale.formattedWeek
+            let sales = "\(sale.sales)"
+            let textAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12),
+                .foregroundColor: UIColor.black
+            ]
+
+            [week, sales].enumerated().forEach { (index, value) in
+                value.draw(at: CGPoint(x: margin + columnWidths[0] * CGFloat(index) + 10, y: yPosition + 8), withAttributes: textAttributes)
+            }
+
+            // Linije između kolona
+            for i in 1..<columnWidths.count {
+                let lineX = margin + columnWidths[0] * CGFloat(i)
+                let linePath = UIBezierPath()
+                linePath.move(to: CGPoint(x: lineX, y: yPosition))
+                linePath.addLine(to: CGPoint(x: lineX, y: yPosition + 30))
+                linePath.lineWidth = 1
+                UIColor.lightGray.setStroke()
+                linePath.stroke()
+            }
+        }
+        
+        func drawTableHeader(context: UIGraphicsPDFRendererContext, columnWidths: [CGFloat], margin: CGFloat, yPosition: CGFloat) {
+            // Pozadina zaglavlja
+            UIColor.systemBlue.setFill()
+            UIBezierPath(rect: CGRect(x: margin, y: yPosition, width: columnWidths.reduce(0, +), height: 30)).fill()
+
+            // Tekst zaglavlja
+            let headerAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 14),
+                .foregroundColor: UIColor.white
+            ]
+            ["Week", "Sales"].enumerated().forEach { (index, header) in
+                header.draw(at: CGPoint(x: margin + columnWidths[0] * CGFloat(index) + 10, y: yPosition + 8), withAttributes: headerAttributes)
+            }
+        }
+        
+        func drawTableBorder(context: UIGraphicsPDFRendererContext, margin: CGFloat, tableTopYPosition: CGFloat, tableBottomYPosition: CGFloat) {
+            let borderPath = UIBezierPath(rect: CGRect(x: margin, y: tableTopYPosition, width: contentWidth, height: tableBottomYPosition - tableTopYPosition))
+            borderPath.lineWidth = 1
+            UIColor.black.setStroke()
+            borderPath.stroke()
+        }
+        
+        func drawHeaderFooter(context: UIGraphicsPDFRendererContext, pageWidth: CGFloat, pageHeight: CGFloat, margin: CGFloat, currentPage: Int, totalPages: Int) {
+            // Header sa naslovom
+            let title = "Weekly Sales Report"
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 18),
+                .foregroundColor: UIColor.black
+            ]
+            let titleSize = title.size(withAttributes: titleAttributes)
+            title.draw(at: CGPoint(x: (pageWidth - titleSize.width) / 2, y: margin), withAttributes: titleAttributes)
+            let footerText = "Author: ImeAplikacije | Created on: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none))"
+                let footerAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 10),
+                    .foregroundColor: UIColor.gray
+                ]
+                footerText.draw(at: CGPoint(x: margin, y: pageHeight - margin - 20), withAttributes: footerAttributes)
+
+                let pageText = "Page \(currentPage) of \(totalPages)"
+                let pageAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 10),
+                    .foregroundColor: UIColor.gray
+                ]
+                pageText.draw(at: CGPoint(x: pageWidth - margin - 100, y: pageHeight - margin - 20), withAttributes: pageAttributes)
+        }
+        
+        let pdfData = pdfRenderer.pdfData { context in
+            var currentPage = 1
+            let totalPages = Int(ceil(Double(salesData.count) / 20)) // Prilagodite broj redova po stranici
+            let columnWidths = [CGFloat(contentWidth / 2), CGFloat(contentWidth / 2)]
+            var yPosition = margin + 50
+
+            context.beginPage()
+            drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages)
+            drawTableHeader(context: context, columnWidths: columnWidths, margin: margin, yPosition: yPosition)
+            yPosition += 30
+
+            var tableTopYPosition = yPosition
+            
+            salesData.enumerated().forEach { (index, sale) in
+                if yPosition + 30 > pageHeight - margin - 50 {
+                    context.beginPage()
+                    currentPage += 1
+                    drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages)
+                    drawTableHeader(context: context, columnWidths: columnWidths, margin: margin, yPosition: margin + 50)
+                    yPosition = margin + 80
+                }
+
+                drawTableRow(context: context, sale: sale, columnWidths: columnWidths, margin: margin, yPosition: yPosition, isOddRow: index % 2 == 0)
+                yPosition += 30
+            }
+        }
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).pdf")
+        do {
+            try pdfData.write(to: url)
+            return url
+        } catch {
+            print("Error writing PDF: \(error)")
+            return nil
+        }
+    }
+}
+
+struct PDFPreviewView: View {
+    let url: URL
+    
+    var body: some View {
+        VStack {
+            if let document = PDFDocument(url: url) {
+                PDFKitView(document: document)
+            } else {
+                Text("Failed to load PDF")
+                    .foregroundColor(.red)
+            }
+        }
+    }
+}
+
+struct PDFKitView: UIViewRepresentable {
+    let document: PDFDocument
+
+    func makeUIView(context: Context) -> PDFView {
+        let pdfView = PDFView()
+        pdfView.document = document
+        pdfView.autoScales = true
+        return pdfView
+    }
+
+    func updateUIView(_ uiView: PDFView, context: Context) {}
+}
+
+struct PDFTestView: View {
+    let salesData: [WeeklySale] = [
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        WeeklySale(week: Date(), sales: 100),
+        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
+        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
+        
+    ]
+    
+    @State private var showPDF = false
+    @State private var pdfURL: URL?
+    
+    var body: some View {
+        VStack {
+            // Prikaz podataka kao tabela
+            List(salesData) { sale in
+                HStack {
+                    Text(sale.formattedWeek)
+                    Spacer()
+                    Text("\(sale.sales)")
+                }
+            }
+            
+            // Dugme za generisanje PDF-a
+            Button(action: {
+                if let pdfURL = PDFTableGenerator.generatePDF(salesData: salesData, fileName: "WeeklySalesReport") {
+                    let activityViewController = UIActivityViewController(activityItems: [pdfURL], applicationActivities: nil)
+                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let rootVC = scene.windows.first?.rootViewController {
+                        rootVC.present(activityViewController, animated: true, completion: nil)
+                    }
+                } else {
+                    print("Failed to generate PDF.")
+                }
+            }) {
+                Text("Generate & Share PDF")
+                    .font(.headline)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+            }
+            .padding()
+        }
+        .sheet(isPresented: $showPDF) {
+            if let pdfURL = pdfURL {
+                PDFPreviewView(url: pdfURL)
+            }
+        }
+    }
+}
 
 #Preview{
     
