@@ -1,0 +1,44 @@
+{
+    "course1": [
+        {"month": "2025-01-31", "maxSales": 18453, "minSales": 3617},
+        {"month": "2024-12-31", "maxSales": 17234, "minSales": 2891},
+        {"month": "2024-11-30", "maxSales": 19232, "minSales": 3389},
+        {"month": "2024-10-31", "maxSales": 17564, "minSales": 4052},
+        {"month": "2024-09-30", "maxSales": 18974, "minSales": 4675},
+        {"month": "2024-08-31", "maxSales": 16589, "minSales": 3982},
+        {"month": "2024-07-31", "maxSales": 14023, "minSales": 3721},
+        {"month": "2024-06-30", "maxSales": 15328, "minSales": 2998},
+        {"month": "2024-05-31", "maxSales": 17895, "minSales": 4115},
+        {"month": "2024-04-30", "maxSales": 16234, "minSales": 3584},
+        {"month": "2024-03-31", "maxSales": 14987, "minSales": 3152},
+        {"month": "2024-02-28", "maxSales": 12039, "minSales": 2678}
+    ],
+    "course2": [
+        {"month": "2025-01-31", "maxSales":  17823, "minSales": 5113},
+        {"month": "2024-12-31", "maxSales":  13942, "minSales": 1574},
+        {"month": "2024-11-30", "maxSales":  10485, "minSales": 3389},
+        {"month": "2024-10-31", "maxSales":  19563, "minSales": 4052},
+        {"month": "2024-09-30", "maxSales":  15328, "minSales": 4675},
+        {"month": "2024-08-31", "maxSales":  11657, "minSales": 3982},
+        {"month": "2024-07-31", "maxSales":  18123, "minSales": 3721},
+        {"month": "2024-06-30", "maxSales":  16572, "minSales": 2998},
+        {"month": "2024-05-31", "maxSales":  14093, "minSales": 4115},
+        {"month": "2024-04-30", "maxSales":  19834, "minSales": 3584},
+        {"month": "2024-03-31", "maxSales":  10872, "minSales": 3152},
+        {"month": "2024-02-28", "maxSales":  12569, "minSales": 2678}
+    ],
+    "course3": [
+        {"month": "2025-01-31", "maxSales":  13482, "minSales": 4791},
+        {"month": "2024-12-31", "maxSales":  16729, "minSales": 2457},
+        {"month": "2024-11-30", "maxSales":  19105, "minSales": 3875},
+        {"month": "2024-10-31", "maxSales":  11854, "minSales": 4389},
+        {"month": "2024-09-30", "maxSales":  15372, "minSales": 2910},
+        {"month": "2024-08-31", "maxSales":  17432, "minSales": 4662},
+        {"month": "2024-07-31", "maxSales":  14018, "minSales": 3234},
+        {"month": "2024-06-30", "maxSales":  19876, "minSales": 2139},
+        {"month": "2024-05-31", "maxSales":  12648, "minSales": 3578},
+        {"month": "2024-04-30", "maxSales":  18254, "minSales": 4810},
+        {"month": "2024-03-31", "maxSales":  16230, "minSales": 2624},
+        {"month": "2024-02-28", "maxSales":  10785, "minSales": 4997}
+    ]
+}

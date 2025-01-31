@@ -546,6 +546,7 @@ import Charts
 
 struct MonthlyMinMaxSalesChartView: View {
     @ObservedObject var viewModel: SalesViewModel
+    @State private var selectedCourse: String = "course1"
     @State private var rawSelectedDate: Date?
     var selectedMinMax: MonthlyMinMaxSale? {
         guard let rawSelectedDate else{ return nil}
@@ -562,6 +563,21 @@ struct MonthlyMinMaxSalesChartView: View {
     var body: some View {
         VStack {
             
+            HStack(spacing: 0) {
+                Text("Selected course:")
+                    .foregroundStyle(.secondary)
+            Picker("Select Course", selection: $selectedCourse) {
+                Text("Course 1").tag("course1")
+                Text("Course 2").tag("course2")
+                Text("Course 3").tag("course3")
+            }
+            .pickerStyle(.menu)
+            .onChange(of: selectedCourse) { newValue in
+                viewModel.loadMonthlyMinMaxSalesData(for: newValue)
+            }
+        }
+            .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
             
             Chart{
                 if let selectedMinMax{
@@ -670,6 +686,8 @@ struct MonthlyMinMaxSalesChartView: View {
             }
             .frame(height: 500)
             .padding()
+        }.onAppear{
+            viewModel.loadMonthlyMinMaxSalesData(for: selectedCourse)
         }
     }
 }
@@ -822,8 +840,35 @@ struct WeeklyMinMaxSalesChartView: View {
         }
     }
 
+    enum ChartStyle: String, CaseIterable, Identifiable {
+        case course1 = "Course 1"
+        case course2 = "Course 2"
+        case course3 = "Course 3"
+        
+        var id: Self { self }
+    }
+    @State private var selectedChartStyle: ChartStyle = .course1
+    
     var body: some View {
+        
+
         VStack {
+            HStack(spacing: 0) {
+                Text("Selected course:")
+                    .foregroundStyle(.secondary)
+                
+                Picker("Chart Type", selection: $selectedChartStyle) {
+                    ForEach(ChartStyle.allCases) {
+                        Text($0.rawValue)
+                    }
+                }
+                .frame(alignment: .leading)
+                .pickerStyle(.menu)
+                .tint(.blue)
+                
+                
+            }.frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
             chartView
                 .frame(height: 500)
                 .padding()
@@ -1221,6 +1266,29 @@ class SalesViewModel: ObservableObject {
             return Double(totalSales) / Double(salesByWeek.count)
         }
     
+    
+    func loadMonthlyMinMaxSalesData(for course: String) {
+            guard let url = Bundle.main.url(forResource: "monthlyMinMaxSalesData", withExtension: "json") else {
+                print("JSON file not found.")
+                return
+            }
+
+            do {
+                let data = try Data(contentsOf: url)
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .formatted(dateFormatter())
+                let salesData = try decoder.decode([String: [MonthlyMinMaxSale]].self, from: data)
+                monthlyMinMaxSales = salesData[course] ?? []
+            } catch {
+                print("Error decoding JSON: \(error)")
+            }
+        }
+
+        private func dateFormatter() -> DateFormatter {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            return formatter
+        }
     func generateRandomMonthlyMinMaxData() {
             let calendar = Calendar.current
             let currentDate = Date()
@@ -1279,7 +1347,7 @@ struct HighestCourseSale: Identifiable {
     let color: Color
 }
 
-struct MonthlyMinMaxSale: Identifiable, Equatable {
+struct MonthlyMinMaxSale: Identifiable, Equatable, Decodable {
     let id = UUID()
     let month: Date
     let maxSales: Int
@@ -2337,10 +2405,10 @@ struct EarningsDetailGridView: View {
                 Color.clear
                     .gridCellUnsizedAxes([.vertical, .horizontal])
                 Text("Gross Earnings")
-                    .gridCellAnchor(.trailing)
+                    .gridCellAnchor(.center)
                     
                 Text("Net Earnings")
-                    .gridCellAnchor(.trailing)
+                    .gridCellAnchor(.center)
                     
                 Text("Difference")
                     .bold()
@@ -2413,7 +2481,7 @@ struct EarningsChartView: View {
                     .bold()
                     .foregroundStyle(.pink)
                     
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal).padding(.top)
             
             Chart(viewModel.monthlyEarnings) { data in
                 
@@ -2476,7 +2544,7 @@ struct EarningsChartView: View {
                     .padding(.vertical)
                     
                     // Smanjuje širinu sa svake strane za 50 piksela
-            Text("Detailed Breakdown of Your Expenses per Month")
+            Text("Detailed Breakdown of Your Earnings per Month")
                 .bold()
                 
                 .padding(.horizontal)
