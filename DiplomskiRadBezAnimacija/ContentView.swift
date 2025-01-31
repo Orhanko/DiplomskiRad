@@ -82,13 +82,13 @@ struct ContentView: View {
                 Label("Courses", systemImage: "bubble.left.and.bubble.right")
             }
             TabTwoView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
-                .tabItem{Label("Search", systemImage: "magnifyingglass")}
-            TabThreeView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
-                .tabItem{Label("Recent", systemImage: "clock")}
-            TabFourView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
-                .tabItem{Label("Notifications", systemImage: "bell")}
-            TabFiveView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
-                .tabItem{Label("Profile", systemImage: "person")}
+                .tabItem{Label("Statistics", systemImage: "doc.text.fill")}
+//            TabThreeView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
+//                .tabItem{Label("Recent", systemImage: "clock")}
+//            TabFourView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
+//                .tabItem{Label("Notifications", systemImage: "bell")}
+//            TabFiveView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
+//                .tabItem{Label("Profile", systemImage: "person")}
             
         }
 
@@ -102,8 +102,8 @@ struct TabOneView: View {
     var body: some View {
         NavigationView{
             ScrollView(.vertical, showsIndicators: true){
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 20) {
+                
+                    VStack(spacing: 50) {
                         ForEach(courses) { course in
                             let jsonName = course.chart
                             let viewModel = SalesViewModel(jsonName: jsonName)
@@ -113,19 +113,19 @@ struct TabOneView: View {
                     .padding(20)
                     .padding(.bottom, 10)
                     
-                }
-                VStack {
-                    Text("Recent")
-                        .font(.title)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    VStack(spacing: 20) {
-                        ForEach(courseSections) { section in
-                            HCard(section: section)
-                        }
-                    }
-                }
-                .padding(20)
+                
+//                VStack {
+//                    Text("Recent")
+//                        .font(.title)
+//                        .frame(maxWidth: .infinity, alignment: .leading)
+//                    
+//                    VStack(spacing: 20) {
+//                        ForEach(courseSections) { section in
+//                            HCard(section: section)
+//                        }
+//                    }
+//                }
+//                .padding(20)
             }
             .navigationBarItems(
                 leading: Button(action: {
@@ -155,13 +155,13 @@ struct TabTwoView: View {
     @Binding var isOnboardingPresented: Bool
     
     @StateObject var highestSalesViewModel = HighestSalesViewModel()
+    @StateObject var earningsViewModel = EarningsViewModel()
+    
     @StateObject private var viewModel = SalesViewModel(jsonName: "first-course-monthly-sales")
     var body: some View {
         NavigationView{
             ScrollView(.vertical, showsIndicators: true){
                 VStack {
-                    DailySalesChartView(salesData: viewModel.salesData)
-                        .padding()
                     NavigationLink{
                         SalesPerBookCategoryView(viewModel: highestSalesViewModel)
                     } label: {
@@ -169,8 +169,24 @@ struct TabTwoView: View {
                     }.buttonStyle(PlainButtonStyle())
 //                SectorMarkView()
                         .padding()
-                    MonthlyMinMaxSalesChartView(viewModel: viewModel)
-                    WeeklyMinMaxSalesChartView(viewModel: viewModel)
+                        .padding(.horizontal, 10)
+                    NavigationLink{
+                        MinMaxView(viewModel: viewModel)
+                    } label: {
+                        MinMaxLabelView()
+                            
+                    }.buttonStyle(PlainButtonStyle())
+                    .padding()
+                    .padding(.horizontal, 10)
+                    NavigationLink{
+                        EarningsChartView(viewModel: earningsViewModel)
+                    } label: {
+                        EarningsLabelChartView(viewModel: earningsViewModel)
+                            
+                    }.buttonStyle(PlainButtonStyle())
+                    .padding()
+                    .padding(.horizontal, 10)
+                    
                 }
             }
             
@@ -194,7 +210,7 @@ struct TabTwoView: View {
                         .imageScale(.large)
                 }
             )
-            .navigationTitle("Search")
+            .navigationTitle("Statistics")
         }
         
     }
@@ -471,6 +487,17 @@ struct VCardDetailsView: View{
     @ObservedObject var viewModel: SalesViewModel
     @State private var selectedChartStyle: ChartStyle = .month
     
+    private func handleToolbarButtonPress() {
+            switch selectedChartStyle {
+            case .month:
+                print("Monthly action triggered")
+            case .week:
+                print("Weekly action triggered")
+            case .day:
+                print("Daily action triggered")
+            }
+        }
+    
     var body: some View{
         VStack{
             Text("Presented Data is valid for the past year.")
@@ -494,7 +521,7 @@ struct VCardDetailsView: View{
                     WeeklySalesChartView(salesViewModel: viewModel, color: color)
                         .transition(.opacity)
                 } else{
-                    DailySalesChartView(salesData: viewModel.salesData)
+                    DailySalesChartView(salesViewModel: viewModel, color: color)
                         .transition(.opacity)
                 }
                         
@@ -502,6 +529,14 @@ struct VCardDetailsView: View{
             Spacer()
                 
         }.padding()
+            .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button(action: handleToolbarButtonPress) {
+                                Image(systemName: "printer.filled.and.paper")
+                            }
+                        }
+                    }
+        
         }
     }
 
@@ -625,7 +660,7 @@ struct MonthlyMinMaxSalesChartView: View {
                         
                 }
             }
-            .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.6))
+            .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.3))
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month)) { value in
                     AxisValueLabel(format: .dateTime.month(.abbreviated))
@@ -633,11 +668,142 @@ struct MonthlyMinMaxSalesChartView: View {
                         
                 }
             }
-            .frame(height: 300)
+            .frame(height: 500)
             .padding()
         }
     }
 }
+
+struct MinMaxView: View {
+    
+    enum ChartStyle: String, CaseIterable, Identifiable {
+        case month = "Month"
+        case week = "Week"
+        
+        var id: Self { self }
+    }
+    @ObservedObject var viewModel: SalesViewModel
+    @State private var selectedChartStyle: ChartStyle = .month
+    
+    var body: some View {
+        VStack{
+//            Text("Presented Data is valid for the past year.")
+//                .font(.footnote)
+//                .frame(maxWidth: .infinity, alignment: .leading)
+//                .foregroundStyle(.secondary)
+//                .fontWeight(.semibold)
+//                .padding(.bottom, 10)
+            Picker("Chart Type", selection: $selectedChartStyle) {
+                ForEach(ChartStyle.allCases) {
+                    Text($0.rawValue)
+                }
+            }
+            .padding([.horizontal, .top])
+            .pickerStyle(.segmented)
+            .padding(.bottom, 10)
+            ZStack {
+                if selectedChartStyle == .month {
+                    MonthlyMinMaxSalesChartView(viewModel: viewModel)
+                        .transition(.opacity)
+                } else if selectedChartStyle == .week{
+                    WeeklyMinMaxSalesChartView(viewModel: viewModel)
+                        .transition(.opacity)
+                }
+                        
+                }.animation(.easeInOut(duration: 0.25), value: selectedChartStyle)
+            Spacer()
+                
+        }
+    }
+}
+
+struct MinMaxLabelView: View {
+    let upperLineValues = [34, 36, 27, 30, 38, 33]
+    let lowerLineValues = [5, 12, 9, 14, 10, 13]
+    
+    var body: some View {
+        VStack {
+            Group{
+            Text("Check out the monthly and weekly balance of the ") +
+            Text("highest ")
+                    .foregroundStyle(.green).fontWeight(.bold)
+                
+            + Text("and ") +
+                Text("lowest ").foregroundStyle(.red).fontWeight(.bold)
+                
+            + Text("values ​​for sale")
+        }
+                
+                .padding(.top, 32)
+                .padding(.horizontal, 24)
+                .padding(.bottom)
+                .font(.body)
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
+                
+            
+            
+            Chart {
+                // Gornji LineMark - PLAVA LINIJA
+                ForEach(upperLineValues.indices, id: \.self) { index in
+                    LineMark(
+                        x: .value("Index", index),
+                        y: .value("Upper Line", upperLineValues[index]),
+                        series: .value("Series", "Upper Line")
+                    )
+                    .foregroundStyle(.green)
+                    .symbol(Circle())
+                }
+
+                // Donji LineMark - CRVENA LINIJA
+                ForEach(lowerLineValues.indices, id: \.self) { index in
+                    LineMark(
+                        x: .value("Index", index),
+                        y: .value("Lower Line", lowerLineValues[index]),
+                        series: .value("Series", "Lower Line")
+                    )
+                    .foregroundStyle(.red)
+                    .symbol(Circle())
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: 200)
+            .padding(.horizontal, 24)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: 1)){AxisGridLine()}
+            }
+            .chartYAxis {
+                AxisMarks {AxisGridLine()}
+            }
+            .frame(maxWidth: .infinity, minHeight: 200)
+            .padding(.top)
+            .padding(.horizontal, 30)
+            .padding(.bottom, 32)
+            
+            //            .onAppear {
+            //                // Generisanje nasumičnih podataka
+            //                data = (1...20).map { point in
+            //                    (id: point, upperValue: Int.random(in: 30...40), lowerValue: Int.random(in: 10...20))
+            //                }
+            //            }
+            
+            
+            
+            
+            
+            
+        }.background(.gray.opacity(0.2))
+            .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay(
+                Image(systemName: "chevron.compact.right") // Strelica desno
+                    .foregroundColor(.gray) // Siva boja strelice
+                    .font(.system(size: 25)) // Veličina fonta
+                    .frame(maxHeight: .infinity, alignment: .center) // Cijela visina za centriranje
+                    .padding(.trailing, 16), // Pomjeranje od ivice
+                alignment: .trailing
+            )
+        
+    }}
 
 struct WeeklyMinMaxSalesChartView: View {
     @ObservedObject var viewModel: SalesViewModel
@@ -659,7 +825,7 @@ struct WeeklyMinMaxSalesChartView: View {
     var body: some View {
         VStack {
             chartView
-                .frame(height: 300)
+                .frame(height: 500)
                 .padding()
                 .onAppear {
                             if let lastDate = viewModel.weeklyMinMaxSales.last?.week {
@@ -733,7 +899,7 @@ struct WeeklyMinMaxSalesChartView: View {
         .chartScrollableAxes(.horizontal)
         .chartXVisibleDomain(length: 6 * 7 * 24 * 60 * 60)
         .chartScrollPosition(x: $scrollPosition)
-        .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.6))
+        .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.3))
         // Prikazuje 12 sedmica
         .chartYAxis {
             AxisMarks(position: .trailing) {
@@ -806,6 +972,7 @@ struct WeeklyMinMaxSalesChartView: View {
             Text("Min").foregroundColor(Color.secondary).font(.footnote)
         }
     }
+    
 }
 
 struct MonthlySalesChartView: View {
@@ -1199,48 +1366,68 @@ struct SectorMarkView: View {
             if let bestSellingCategory = salesViewModel.bestSellingCategory {
                 let percentage = (bestSellingCategory.sales / salesViewModel.totalSales) * 100
 
-                Group { // Grupisanje teksta radi dodavanja padding-a na cijelu rečenicu
-                    Text("Najprodavaniji kurs je ") +
+                VStack(alignment: .leading, spacing: 1) {
+                    
+
+                    
                     Text("\(bestSellingCategory.category)")
-                        .foregroundColor(.blue) // Boja naziva kursa
-                        .fontWeight(.heavy) +
-                    Text(" sa \(String(format: "%.2f", percentage))% ukupnih prodaja.")
-                        .foregroundColor(.primary) // Ostatak teksta u default boji
+                        .foregroundColor(.blue)
+                        .fontWeight(.bold)
+                        .font(.headline)
+                    + Text(" is the best")
+                    Text("selling course with")
+                    Text("\(String(format: "%.2f", percentage))%")
+                        .foregroundColor(.blue)
+                        .fontWeight(.bold)
+                        .font(.headline)
+                    + Text(" of total sales.")
+                    
+                    
+                    
                 }
-                .padding() // Padding na cijelu grupu teksta
+                .padding(.leading, 24)
+                .padding(.trailing, 16)
+                               
+                
+                // Padding na cijelu grupu teksta
             } else {
                 Text("Nema podataka o prodaji.")
                     .padding() // Dodavanje padding-a i za "fallback" poruku
             }
                 
 
-            // SectorMark Chart
-            if #available(macOS 14.0, *) {
+
                 Chart(salesViewModel.totalSalesPerCategory, id: \.category) { data in
                     SectorMark(
                         angle: .value("Prodaja", data.sales),
                         innerRadius: .ratio(0.5), // Donut izgled
                         angularInset: 1.5 // Razmak između sektora
                     )
-                    .foregroundStyle(.blue/*by: .value("Kategorija", data.category)*/) // Različite boje po kategorijama
+                    .foregroundStyle(.blue) // Različite boje po kategorijama
                     .cornerRadius(5.0)
                     .opacity(data.category == salesViewModel.bestSellingCategory?.category ? 1 : 0.2) // Najprodavaniji kurs ima punu vidljivost
                 }
                 .aspectRatio(1, contentMode: .fit)
-                .frame(height: 70) // Veličina pie chart-a
-                .padding()
+                .frame(height: 85) // Veličina pie chart-a
+                
+                
                 .chartLegend(.hidden)
-            }
-            Image(systemName: "chevron.right") // Strelica desno
-                            .foregroundColor(.gray) // Siva boja strelice
-                            .font(.system(size: 16)) // Prilagođena veličina i težina
-                            .padding(.trailing,5)
+            
+            Spacer()
         }
         
-        .frame(maxWidth: .infinity, maxHeight: 110)
+        .frame(maxWidth: .infinity, minHeight: 150)
         
         .background(/*Color(#colorLiteral(red: 0.3647058904, green: 0.06666667014, blue: 0.9686274529, alpha: 1))*/.gray.opacity(0.2))
         .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(
+            Image(systemName: "chevron.compact.right") // Strelica desno
+                .foregroundColor(.gray) // Siva boja strelice
+                .font(.system(size: 25)) // Veličina fonta
+                .frame(maxHeight: .infinity, alignment: .center) // Cijela visina za centriranje
+                .padding(.trailing, 16), // Pomjeranje od ivice
+            alignment: .trailing
+        )
     }
         
 }
@@ -1420,20 +1607,14 @@ struct FullSizePieChartView: View {
 
 struct DailySalesChartView: View {
     
-    let salesData: [Sale]
-    //let color: Color
+    @ObservedObject var salesViewModel: SalesViewModel
+    let color: Color
+    @State var showAverageLine: Bool = false
     
-    init(salesData: [Sale]) {
-        self.salesData = salesData
-        
-        guard let lastDate = salesData.last?.saleDate else { return }
-        self._scrollPosition = State(initialValue: lastDate.timeIntervalSinceReferenceDate)
-        
-    }
     
     let numberOfDisplayedDays = 31
     
-    @State var scrollPosition: TimeInterval = TimeInterval()
+    @State var scrollPosition: TimeInterval = 0
     
     var scrollPositionStart: Date {
         Date(timeIntervalSinceReferenceDate: scrollPosition)
@@ -1471,6 +1652,12 @@ struct DailySalesChartView: View {
                         .transition(.opacity)
                 }
             }
+            .onAppear {
+            if let lastDate = salesViewModel.salesData.last?.saleDate {
+                // Postavljanje scroll pozicije tako da započne na desnoj strani (zadnji datum)
+                scrollPosition = lastDate.timeIntervalSinceReferenceDate
+            }
+        }
             .animation(.easeInOut(duration: 0.2), value: selectedChartStyle)
             
             Divider()
@@ -1496,7 +1683,7 @@ struct DailySalesChartView: View {
                     }
                     .frame(alignment: .trailing)
                     .pickerStyle(.menu)
-                    .tint(.blue)
+                    .tint(color)
                     
                 }
                 
@@ -1507,19 +1694,23 @@ struct DailySalesChartView: View {
                 .frame(height: 1) // Tanak divider
             // Horizontalni razmak
                 .padding(.horizontal, -16)
+            Toggle("Show average line", isOn: $showAverageLine)
         }
+        
+
     }
+        
     
     private var barMarkView: some View {
         VStack(alignment: .leading, spacing: 5){
             Text("\(scrollPositionString) – \(scrollPositionEndString)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Chart(salesData, id: \.saleDate) {
+            Chart(salesViewModel.salesData, id: \.saleDate) {
                 BarMark(
                     x: .value("Day", $0.saleDate, unit: .day),
                     y: .value("Sales", $0.quantity)
-                )
+                ).foregroundStyle(color)
                 
             }
             .chartXAxis {
@@ -1542,6 +1733,7 @@ struct DailySalesChartView: View {
                     majorAlignment: .matching(.init(day: 1))))
             .chartScrollPosition(x: $scrollPosition)
             .frame(height: 300)
+            
         }
     }
     
@@ -1550,26 +1742,15 @@ struct DailySalesChartView: View {
             Text("\(scrollPositionString) – \(scrollPositionEndString)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Chart(salesData, id: \.saleDate) {
-//                AreaMark(x: .value("Day", $0.saleDate, unit: .day),
-//                         y: .value("Sales", $0.quantity)
-//                     ).interpolationMethod(.catmullRom)
-//                    .foregroundStyle(
-//                        .linearGradient(
-//                            Gradient(colors: [.blue, .clear]),
-//                            startPoint: .top,
-//                            endPoint: .bottom
-//                        )
-//                    )
-
+            Chart(salesViewModel.salesData, id: \.saleDate) {
                 
                 LineMark(
                     x: .value("Day", $0.saleDate, unit: .day),
                     y: .value("Sales", $0.quantity)
                     
-                ).foregroundStyle(.blue)
+                ).foregroundStyle(color)
                 .interpolationMethod(.catmullRom)
-                    .shadow(color: .blue, radius: 4, x: 0, y: 5)
+                .shadow(color: color, radius: 4, x: 0, y: 5)
                 
             }
             .chartXAxis {
@@ -1745,7 +1926,7 @@ struct VCard: View {
                     .padding(20)
                 Image(systemName: "chevron.compact.up") // Strelica desno
                     .foregroundColor(.white) // Siva boja strelice
-                    .font(.system(size: 20)) // Prilagođena veličina i težina
+                    .font(.system(size: 25)) // Prilagođena veličina i težina
                     .padding(.top,20)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
@@ -2145,7 +2326,278 @@ struct PDFTestView: View {
     }
 }
 
+struct EarningsDetailGridView: View {
+    
+    @ObservedObject var viewModel: EarningsViewModel
+
+    var body: some View {
+        Grid(alignment: .trailing, horizontalSpacing: 20, verticalSpacing: 10) {
+            // Header row
+            GridRow {
+                Color.clear
+                    .gridCellUnsizedAxes([.vertical, .horizontal])
+                Text("Gross Earnings")
+                    .gridCellAnchor(.trailing)
+                    
+                Text("Net Earnings")
+                    .gridCellAnchor(.trailing)
+                    
+                Text("Difference")
+                    .bold()
+                    .gridCellAnchor(.trailing)
+            }
+
+            Divider()
+                .gridCellUnsizedAxes([.vertical, .horizontal])
+
+            // Data rows for each month
+            ForEach(viewModel.monthlyEarnings) { data in
+                GridRow {
+                    Text(month(for: data.month))
+
+                    Text(String(format: "%.2f", data.grossEarnings))
+                    Text(String(format: "%.2f", data.netEarnings))
+                    Text(String(format: "%.2f", data.grossEarnings - data.netEarnings))
+                        .bold()
+                }
+            }
+
+            Divider()
+                .gridCellUnsizedAxes([.vertical, .horizontal])
+
+            // Total row
+            GridRow {
+                Text("Total")
+                    .bold()
+
+                Color.clear
+                    .gridCellUnsizedAxes([.vertical, .horizontal])
+                    .gridCellColumns(2)
+
+                Text("$" + String(format: "%.2f", totalGrossEarnings()))
+                    .bold()
+                    .foregroundStyle(.pink)
+                    .fixedSize()
+            }
+            
+        }
+    }
+
+    // Helper function to format month names
+    func month(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: date)
+    }
+
+    // Calculate total gross earnings
+    func totalGrossEarnings() -> Double {
+        viewModel.monthlyEarnings.map { $0.grossEarnings }.reduce(0, +)
+    }
+}
+
+
+struct EarningsChartView: View {
+    @ObservedObject var viewModel: EarningsViewModel
+    
+    func totalGrossEarnings() -> Double {
+        viewModel.monthlyEarnings.map { $0.grossEarnings }.reduce(0, +)
+    }
+    
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: true){
+        VStack {
+            Group {
+                Text("Your total earnings for the last year are: ") +
+                Text("$" + String(format: "%.2f", totalGrossEarnings()))
+                    .bold()
+                    .foregroundStyle(.pink)
+                    
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+            
+            Chart(viewModel.monthlyEarnings) { data in
+                
+                LineMark(
+                    x: .value("Month", data.month),
+                    y: .value("Gross Earnings", data.grossEarnings)
+                )
+                .foregroundStyle(.blue)
+                .symbol(by: .value("Legend", "Gross Earnings"))
+                .interpolationMethod(.catmullRom)
+                
+                LineMark(
+                    x: .value("Month", data.month),
+                    y: .value("Net Earnings", data.netEarnings)
+                )
+                .foregroundStyle(.purple)
+                .symbol(Circle())
+                .interpolationMethod(.catmullRom)
+                AreaMark(
+                    x: .value("Month", data.month),
+                    yStart: .value("Net Earnings", data.netEarnings),
+                    yEnd: .value("Gross Earnings", data.grossEarnings)
+                )
+                .foregroundStyle(
+                    .linearGradient(
+                        Gradient(colors: [.purple.opacity(0.3), .blue.opacity(0.5)]), // Boje gradijenta
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                ) // Boja prostora između linija
+                .interpolationMethod(.catmullRom)
+            }
+            .onAppear{
+                for sale in viewModel.monthlyEarnings{
+                    print("1. \(sale.grossEarnings), 2. \(sale.netEarnings)")
+                }
+            }
+            .chartLegend(position: .bottom, spacing: 10) { legendView }
+            
+            .chartXAxis {
+                AxisMarks(values: viewModel.monthlyEarnings.enumerated().compactMap { index, data in
+                    index.isMultiple(of: 2) ? data.month : nil
+                }) { value in
+                    AxisGridLine() // Grid linija za odabrane mjesece
+                    AxisTick() // Tick oznaka ispod mjeseca
+                    AxisValueLabel(centered: false, anchor: .top) {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.month(.abbreviated))
+                        }
+                    }
+                }
+            }
+            .frame(height: 300)
+            .padding(.horizontal).padding(.bottom)
+            Divider()
+                
+                .frame(height: 1) // Debljina linije postavljena na 3 piksela
+                .background(.gray.opacity(0.3))
+                    // Postavi boju linije
+                    .padding(.vertical)
+                    
+                    // Smanjuje širinu sa svake strane za 50 piksela
+            Text("Detailed Breakdown of Your Expenses per Month")
+                .bold()
+                
+                .padding(.horizontal)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            EarningsDetailGridView(viewModel: viewModel)
+                .padding(.horizontal, 20)
+            Divider()
+                .padding(.bottom)
+        }
+    }
+        
+        
+        
+        
+        
+        
+    }
+    private var legendView: some View {
+        HStack {
+            Circle()
+                .strokeBorder(lineWidth: 2)
+                .fill(.blue)
+                .frame(width: 8, height: 8)
+            Text("Gross Earnings").foregroundStyle(Color.secondary).font(.footnote)
+
+            Circle()
+                .strokeBorder(lineWidth: 2)
+                .fill(.purple)
+                .frame(width: 8, height: 8)
+            Text("Net Earnings").foregroundColor(Color.secondary).font(.footnote)
+        }
+    }
+}
+
+struct MonthlyEarnings: Identifiable {
+    let id = UUID()
+    let month: Date
+    let grossEarnings: Double
+    let netEarnings: Double
+}
+
+class EarningsViewModel: ObservableObject {
+    @Published var monthlyEarnings: [MonthlyEarnings] = []
+
+    init() {
+        generateEarningsData()
+    }
+
+    func generateEarningsData() {
+        let calendar = Calendar.current
+        let currentDate = Date()
+
+        for monthOffset in 0..<12 {
+            if let monthDate = calendar.date(byAdding: .month, value: -monthOffset, to: currentDate) {
+                let gross = Double.random(in: 8000...15000) // Bruto zarada
+                let net = gross * 0.75                     // Neto zarada (75% bruto)
+                monthlyEarnings.append(MonthlyEarnings(month: monthDate, grossEarnings: gross, netEarnings: net))
+            }
+        }
+
+        // Sortiranje po mjesecima
+        monthlyEarnings.sort { $0.month < $1.month }
+    }
+}
+
+struct EarningsLabelChartView: View {
+    func totalGrossEarnings() -> Double {
+        viewModel.monthlyEarnings.map { $0.grossEarnings }.reduce(0, +)
+    }
+    @ObservedObject var viewModel: EarningsViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Group {
+                Text("Total earnings: ") +
+                Text("$" + String(format: "%.2f", totalGrossEarnings()))
+                    .bold()
+                    .foregroundStyle(.pink)
+                    
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 24).padding(.trailing).padding(.bottom,8)
+            Chart (viewModel.monthlyEarnings){ data in
+                        AreaMark(x: .value("Date", data.month),
+                                 y: .value("Expense", data.grossEarnings))
+                    
+                
+                        .interpolationMethod(.linear)
+                .foregroundStyle(.pink)
+            }
+            .chartXAxis(.hidden)
+            .chartYAxis(.hidden)
+            .chartLegend(.hidden)
+            
+            
+            .frame(height: 80)
+            .padding(.horizontal, 45)
+        }
+        .frame(maxWidth: .infinity, minHeight: 170)
+        .background(/*Color(#colorLiteral(red: 0.3647058904, green: 0.06666667014, blue: 0.9686274529, alpha: 1))*/.gray.opacity(0.2))
+        .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(
+            Image(systemName: "chevron.compact.right") // Strelica desno
+                .foregroundColor(.gray) // Siva boja strelice
+                .font(.system(size: 25)) // Veličina fonta
+                .frame(maxHeight: .infinity, alignment: .center) // Cijela visina za centriranje
+                .padding(.trailing, 16), // Pomjeranje od ivice
+            alignment: .trailing
+        )
+    }
+    
+    let formatter = DateFormatter()
+    
+    func month(for number: Int) -> String {
+        // to short - charts cannot uniquely identify
+        // formatter.veryShortMonthSymbols[number - 1]
+        formatter.shortStandaloneMonthSymbols[number - 1]
+    }
+    
+}
+
 #Preview{
-    
-    
+    EarningsLabelChartView(viewModel: EarningsViewModel())
+        .padding()
+        .padding(.horizontal, 10)
 }
