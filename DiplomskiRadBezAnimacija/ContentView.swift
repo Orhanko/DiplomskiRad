@@ -1204,7 +1204,6 @@ class SalesViewModel: ObservableObject {
         generateDummyData()
         self.salesByMonth = loadMonthlySales(from: jsonName)
         generateRandomWeeklySalesData()
-        generateRandomMonthlyMinMaxData()
         generateRandomWeeklyMinMaxData()
     }
 
@@ -1288,21 +1287,6 @@ class SalesViewModel: ObservableObject {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             return formatter
-        }
-    func generateRandomMonthlyMinMaxData() {
-            let calendar = Calendar.current
-            let currentDate = Date()
-
-            for monthOffset in 0..<12 {
-                if let monthDate = calendar.date(byAdding: .month, value: -monthOffset, to: currentDate) {
-                    let maxSales = Int.random(in: 5000...20000) // Maksimalna prodaja
-                    let minSales = Int.random(in: 1000...5000)  // Minimalna prodaja
-                    monthlyMinMaxSales.append(MonthlyMinMaxSale(month: monthDate, maxSales: maxSales, minSales: minSales))
-                }
-            }
-
-            // Sortiramo podatke po mjesecima
-        monthlyMinMaxSales.sort { $0.month < $1.month }
         }
     
     func generateRandomWeeklyMinMaxData() {
