@@ -560,6 +560,7 @@ struct MonthlyMinMaxSalesChartView: View {
             Calendar.current.isDate($0.month, equalTo: selectedMinMax.month, toGranularity: .month)
         })
     }
+    
     var body: some View {
         VStack {
             
@@ -572,7 +573,7 @@ struct MonthlyMinMaxSalesChartView: View {
                 Text("Course 3").tag("course3")
             }
             .pickerStyle(.menu)
-            .onChange(of: selectedCourse) { newValue in
+            .onChange(of: selectedCourse) {_, newValue in
                 viewModel.loadMonthlyMinMaxSalesData(for: newValue)
             }
         }
@@ -585,18 +586,7 @@ struct MonthlyMinMaxSalesChartView: View {
                         .foregroundStyle(Color.secondary).opacity(0.5)
                         .annotation(
                             position: .top,
-                            alignment: {
-                                guard let index = selectedMinMaxIndex else { return .center }
-                                let totalCount = viewModel.monthlyMinMaxSales.count
-
-                                if index < 1 {
-                                    return .leading // Pomjeri lijevo ako je među prve dvije sedmice
-                                } else if index > totalCount - 2 {
-                                    return .trailing // Pomjeri desno ako je među zadnje dvije sedmice
-                                } else {
-                                    return .center // U svim ostalim slučajevima ostaje centrirano
-                                }
-                            }(),
+                            
                             spacing: 10,
                             overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
                         ){
@@ -621,7 +611,7 @@ struct MonthlyMinMaxSalesChartView: View {
                                     )
                                     .cornerRadius(10)
                                     .shadow(radius: 5)
-                                    .offset(x: selectedMinMaxIndex == 0 ? -10 : (selectedMinMaxIndex == viewModel.monthlyMinMaxSales.count - 1 ? 10 : 0))
+                                    .offset(x: selectedMinMaxIndex == 0 ? -20 : (selectedMinMaxIndex == viewModel.monthlyMinMaxSales.count - 1 ? -10 : 0))
                             
                         }
                 }
@@ -676,7 +666,7 @@ struct MonthlyMinMaxSalesChartView: View {
                         
                 }
             }
-            .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.3))
+            .chartYScale(domain: 0...(Double(viewModel.monthlyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.3))
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month)) { value in
                     AxisValueLabel(format: .dateTime.month(.abbreviated))
@@ -825,21 +815,9 @@ struct MinMaxLabelView: View {
 
 struct WeeklyMinMaxSalesChartView: View {
     @ObservedObject var viewModel: SalesViewModel
-    @State private var rawSelectedDate: Date?
-    @State private var scrollPosition: TimeInterval = 0
-    var selectedMinMaxIndex: Int? {
-        guard let selectedMinMax else { return nil }
-        return viewModel.weeklyMinMaxSales.firstIndex(where: {
-            Calendar.current.isDate($0.week, equalTo: selectedMinMax.week, toGranularity: .weekOfYear)
-        })
-    }
-    var selectedMinMax: WeeklyMinMaxSale? {
-        guard let rawSelectedDate else { return nil }
-        return viewModel.weeklyMinMaxSales.first {
-            Calendar.current.isDate(rawSelectedDate, equalTo: $0.week, toGranularity: .weekOfYear)
-        }
-    }
-
+    @State private var selectedIndex: Int? = nil
+    @State private var scrollPosition: Double = 0
+    @State private var isAnnotationVisible: Bool = false
     enum ChartStyle: String, CaseIterable, Identifiable {
         case course1 = "Course 1"
         case course2 = "Course 2"
@@ -847,129 +825,150 @@ struct WeeklyMinMaxSalesChartView: View {
         
         var id: Self { self }
     }
-    @State private var selectedChartStyle: ChartStyle = .course1
-    
-    var body: some View {
-        
 
+    @State private var selectedChartStyle: ChartStyle = .course1
+
+    var body: some View {
         VStack {
+            // Picker za kurs
             HStack(spacing: 0) {
                 Text("Selected course:")
                     .foregroundStyle(.secondary)
-                
                 Picker("Chart Type", selection: $selectedChartStyle) {
                     ForEach(ChartStyle.allCases) {
                         Text($0.rawValue)
                     }
                 }
-                .frame(alignment: .leading)
                 .pickerStyle(.menu)
                 .tint(.blue)
-                
-                
-            }.frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal)
+
+            // Chart sa fiksnim indeksima
             chartView
                 .frame(height: 500)
-                .padding()
                 .onAppear {
-                            if let lastDate = viewModel.weeklyMinMaxSales.last?.week {
-                                scrollPosition = lastDate.timeIntervalSinceReferenceDate - 3600 * 24 * 7 * 5 // Pozicionira 6 sedmica unazad
-                            }
+                        if let lastIndex = viewModel.weeklyMinMaxSales.indices.last {
+                            scrollPosition = Double(lastIndex) + 0.5
                         }
-        }
-        .onAppear {
-            for sale in viewModel.weeklyMinMaxSales {
-                print("📊 Week: \(sale.week), Max: \(sale.maxSales), Min: \(sale.minSales)")
-            }
+                    }
+                    .chartScrollPosition(x: $scrollPosition)
+                    .padding()
         }
     }
 
+    private func alignmentForAnnotation(index: Int, totalCount: Int) -> Alignment {
+        if index == 0 {
+            return .leading
+        } else if index == totalCount - 1 {
+            return .trailing
+        } else {
+            return .center
+        }
+    }
+    
+    func calculateOffset(for index: Int?) -> CGFloat {
+        guard let index = index else { return 0 }
+        let totalCount = viewModel.weeklyMinMaxSales.count
+
+        if index == 0 {
+            return -25 // Pomjeraj desno ako je prvi
+        } else if index == totalCount - 1 {
+            return 25 // Pomjeraj lijevo ako je zadnji
+        } else {
+            return 0 // Ostavi centrirano
+        }
+    }
     private var chartView: some View {
         Chart {
-            if let selectedMinMax {
-                // ✅ RuleMark sada nosi anotaciju
-                RuleMark(x: .value("Selected", selectedMinMax.week, unit: .weekOfYear))
+            if let selectedIndex, selectedIndex < viewModel.weeklyMinMaxSales.count {
+                let selectedData = viewModel.weeklyMinMaxSales[selectedIndex]
+                
+                RuleMark(x: .value("Selected", Double(selectedIndex) + 0.5))
                     .foregroundStyle(Color.secondary.opacity(0.5))
                     .annotation(
                         position: .top,
-                        alignment: {
-                            guard let index = selectedMinMaxIndex else { return .center }
-                            let totalCount = viewModel.weeklyMinMaxSales.count
-
-                            if index < 1 {
-                                return .leading // Pomjeri lijevo ako je među prve dvije sedmice
-                            } else if index > totalCount - 2 {
-                                return .trailing // Pomjeri desno ako je među zadnje dvije sedmice
-                            } else {
-                                return .center // U svim ostalim slučajevima ostaje centrirano
-                            }
-                        }(),
-                        spacing: 10,
+                        alignment: alignmentForAnnotation(index: selectedIndex, totalCount: viewModel.weeklyMinMaxSales.count),
+                        
                         overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
                     ) {
-                        annotationView(for: selectedMinMax)
-                                            }
+                        annotationView(for: selectedData)
+                            .offset(x: calculateOffset(for: selectedIndex))
+                    }
             }
+            
+            ForEach(viewModel.weeklyMinMaxSales.indices, id: \.self) { index in
+                    let data = viewModel.weeklyMinMaxSales[index]
 
-            // Prikaz svih podataka
-            ForEach(viewModel.weeklyMinMaxSales) { data in
-                LineMark(
-                    x: .value("Week", data.week, unit: .weekOfYear),
-                    y: .value("Max Sales", data.maxSales)
-                )
-                .foregroundStyle(.green)
-                .symbol(Circle())
-                .symbolSize(50)
-                .symbol(by: .value("Legend", "Maximum"))
-                .opacity(rawSelectedDate == nil ? 1 : 0.5)
+                    LineMark(
+                        x: .value("Week", Double(index) + 0.5),
+                        y: .value("Max Sales", data.maxSales)
+                    )
+                    .foregroundStyle(.green)
+                    .opacity(isAnnotationVisible == false ? 1 : 0.5)
+                    .symbol(Circle())
+                    .symbolSize(50)
+                    .symbol(by: .value("Legend", "Max Sales"))  // Dodajemo jedinstveni identifikator liniji
 
-                LineMark(
-                    x: .value("Week", data.week, unit: .weekOfYear),
-                    y: .value("Min Sales", data.minSales)
-                )
-                .foregroundStyle(.red)
-                .symbol(Circle())
-                .symbolSize(50)
-                .symbol(by: .value("Legend", "Minimum"))
-                .opacity(rawSelectedDate == nil ? 1 : 0.5)
-            }
+                    LineMark(
+                        x: .value("Week", Double(index) + 0.5),
+                        y: .value("Min Sales", data.minSales)
+                    )
+                    .foregroundStyle(.red)
+                    .opacity(isAnnotationVisible == false ? 1 : 0.5)
+                    
+                    .symbol(Circle())
+                    .symbolSize(50)
+                    .symbol(by: .value("Legend", "Min Sales"))  // Dodajemo jedinstveni identifikator drugoj liniji
+                
+                }
         }
-        .chartLegend(position: .bottom, spacing: 10) { legendView }
-        .chartXSelection(value: $rawSelectedDate.animation(.easeInOut(duration: 0.2)))
-//        .onChange(of: rawSelectedDate) { oldValue, newValue in
-//            print("📅 rawSelectedDate promijenjen: \(String(describing: newValue))")
-//        }
-        
         .chartScrollableAxes(.horizontal)
-        .chartXVisibleDomain(length: 6 * 7 * 24 * 60 * 60)
-        .chartScrollPosition(x: $scrollPosition)
+//        .chartXVisibleDomain(length: 6)  // Broj prikazanih sedmica
+        .chartXSelection(value: Binding(
+            get: {
+                selectedIndex.map { Double($0) + 0.5 }
+            },
+            set: { newValue in
+                if let roundedValue = newValue.map({ Int(round($0 - 0.5)) }),
+                   roundedValue >= 0,
+                   roundedValue < viewModel.weeklyMinMaxSales.count {
+                    selectedIndex = roundedValue
+                    
+                                   isAnnotationVisible = true
+                               
+                } else {
+                    // Ako nema validnog dodira, resetuj selekciju
+                    selectedIndex = nil
+                    
+                        isAnnotationVisible = false
+                               
+                }
+            }
+        ))
+        .animation(.easeInOut(duration: 0.2), value: isAnnotationVisible)
         .chartYScale(domain: 0...(Double(viewModel.weeklyMinMaxSales.map { $0.maxSales }.max() ?? 0) * 1.3))
-        // Prikazuje 12 sedmica
+        .chartXAxis {
+            AxisMarks(values: viewModel.weeklyMinMaxSales.indices.map { $0 } + [viewModel.weeklyMinMaxSales.count]) { value in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel (centered: true) {
+                    if let index = value.as(Int.self), index < viewModel.weeklyMinMaxSales.count {
+                        let date = viewModel.weeklyMinMaxSales[index].week
+                        Text(formattedWeek(for: date))
+                    }
+                }
+            }
+        }        .chartXVisibleDomain(length: 6) // Prikazuje dodatnih pola indeksa
         .chartYAxis {
             AxisMarks(position: .trailing) {
                 AxisValueLabel()
                 AxisGridLine()
             }
         }
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .weekOfYear, count: 1)) { value in
-                if let dateValue = value.as(Date.self) {
-                    AxisValueLabel(centered: true) {
-                        Text(weekLabel(for: dateValue))
-                    }
-                }
-                AxisGridLine()
-            }
-        }
-                
-        
-
-        
     }
-    
-    
-    
+
     private func annotationView(for data: WeeklyMinMaxSale) -> some View {
         VStack(spacing: 8) {
             Text("\(data.maxSales)")
@@ -978,46 +977,35 @@ struct WeeklyMinMaxSalesChartView: View {
             Text("\(data.minSales)")
                 .font(.headline)
                 .foregroundColor(.white)
-        }
+        }.animation(.easeInOut(duration: 0.3), value: isAnnotationVisible)
         .padding()
         .background(
             LinearGradient(
                 gradient: Gradient(stops: [
-                    .init(color: Color.green, location: 0.5),
-                    .init(color: Color.red, location: 0.5)
+                    .init(color: Color.green, location: 0.5), // Zelena na gornjoj polovici
+                    .init(color: Color.red, location: 0.5)   // Crvena na donjoj polovici
                 ]),
                 startPoint: .top,
                 endPoint: .bottom
             )
+
         )
         .cornerRadius(10)
         .shadow(radius: 5)
-        .offset(x: selectedMinMaxIndex == 0 ? -25 : (selectedMinMaxIndex == viewModel.weeklyMinMaxSales.count - 1 ? 25 : 0))
     }
-
-    
-    func weekLabel(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d" // Skraceni format: Jan 5, Feb 12, itd.
-        let dateString = formatter.string(from: date)
         
-        return "\(dateString)"
-    }
-    
-    private var legendView: some View {
-        HStack {
-            Circle()
-                .fill(.green)
-                .frame(width: 10, height: 10)
-            Text("Max").foregroundStyle(Color.secondary).font(.footnote)
 
-            Circle()
-                .fill(.red)
-                .frame(width: 10, height: 10)
-            Text("Min").foregroundColor(Color.secondary).font(.footnote)
-        }
+    private func formattedWeek(for week: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: week)
     }
-    
+}
+
+extension Collection {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
 }
 
 struct MonthlySalesChartView: View {
@@ -1204,7 +1192,8 @@ class SalesViewModel: ObservableObject {
         generateDummyData()
         self.salesByMonth = loadMonthlySales(from: jsonName)
         generateRandomWeeklySalesData()
-        generateRandomWeeklyMinMaxData()
+        //generateRandomWeeklyMinMaxData()
+        loadWeeklyMinMaxData()
     }
 
     func generateDummyData() {
@@ -1289,6 +1278,25 @@ class SalesViewModel: ObservableObject {
             return formatter
         }
     
+    func loadWeeklyMinMaxData() {
+            guard let url = Bundle.main.url(forResource: "weekly_min_max_sales", withExtension: "json") else {
+                print("JSON file not found.")
+                return
+            }
+
+            do {
+                let data = try Data(contentsOf: url)
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .formatted(dateFormatter())
+                let sales = try decoder.decode([String: [WeeklyMinMaxSale]].self, from: data)
+                self.weeklyMinMaxSales = sales["weeklySales"]?.reversed() ?? []
+                
+            } catch {
+                print("Error decoding JSON: \(error)")
+            }
+        }
+
+    
     func generateRandomWeeklyMinMaxData() {
         let calendar = Calendar.current
         let currentDate = Date()
@@ -1324,11 +1332,16 @@ struct Sale: Identifiable {
     let quantity: Int
 }
 
-struct HighestCourseSale: Identifiable {
+struct HighestCourseSale: Identifiable, Codable {
     let id = UUID()
     let category: String
     let sales: Double
-    let color: Color
+    var color: Color? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case category
+        case sales
+    }
 }
 
 struct MonthlyMinMaxSale: Identifiable, Equatable, Decodable {
@@ -1338,30 +1351,49 @@ struct MonthlyMinMaxSale: Identifiable, Equatable, Decodable {
     let minSales: Int
 }
 
-struct WeeklyMinMaxSale: Identifiable {
+struct WeeklyMinMaxSale: Identifiable, Decodable {
     let id = UUID()
     let week: Date
     let maxSales: Int
     let minSales: Int
 }
 
+import SwiftUI
+
 class HighestSalesViewModel: ObservableObject {
     @Published var totalSalesPerCategory: [HighestCourseSale] = []
 
     init() {
-        generateRandomSalesData() // Generisanje nasumičnih podataka
+        loadSalesData()  // Učitavanje podataka iz JSON-a
     }
 
-    func generateRandomSalesData() {
-        let coursesWithColors: [(String, Color)] = [
-                    ("Kurs 1", .blue),
-                    ("Kurs 2", .green),
-                    ("Kurs 3", .orange),
-                    ("Kurs 4", .purple)
-                ]
-        totalSalesPerCategory = coursesWithColors.map { (courseName, color) in
-            HighestCourseSale(category: courseName, sales: Double.random(in: 100...500), color: color)
-                }
+    func loadSalesData() {
+        guard let url = Bundle.main.url(forResource: "pie_chart_data", withExtension: "json") else {
+            print("❌ Nije pronađen JSON fajl.")
+            return
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let decodedData = try JSONDecoder().decode([HighestCourseSale].self, from: data)
+
+            // Dodavanje boja svakom Course-u
+            let coursesWithColors: [String: Color] = [
+                "Course 1": .blue,
+                "Course 2": .green,
+                "Course 3": .orange,
+                "Course 4": .purple
+            ]
+
+            totalSalesPerCategory = decodedData.map { sale in
+                var saleWithColor = sale
+                saleWithColor.color = coursesWithColors[sale.category] ?? .gray
+                return saleWithColor
+            }
+
+        } catch {
+            print("❌ Greška prilikom dekodiranja JSON-a: \(error)")
+        }
     }
 
     var bestSellingCategory: HighestCourseSale? {
@@ -1510,11 +1542,11 @@ struct SalesPerBookCategoryView: View {
                 let percentage = (bestSellingCategory.sales / viewModel.totalSales) * 100
 
                 Group { // Grupisanje teksta radi dodavanja padding-a na cijelu rečenicu
-                    Text("Najprodavaniji kurs je ") +
+                    Text("The best-selling course is ") +
                     Text("\(bestSellingCategory.category)")
                         .foregroundColor(bestSellingCategory.color) // Boja naziva kursa
                         .fontWeight(.heavy) +
-                    Text(" sa \(String(format: "%.2f", percentage))% ukupnih prodaja.")
+                    Text(" with \(String(format: "%.2f", percentage))% of total sales.")
                         .foregroundColor(.primary) // Ostatak teksta u default boji
                 }
                 
@@ -1538,14 +1570,7 @@ struct SalesPerBookCategoryView: View {
                     FullSizePieChartView(salesViewModel: viewModel) // Pie Chart prikaz
             }
             Spacer()
-            Button(action: {
-                            withAnimation(.easeInOut(duration: 0.6)) {
-                                viewModel.generateRandomSalesData() // Generiše nove random podatke
-                            }
-                        }, label: {
-                            Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
-                                .padding(.bottom, 50)
-                        })
+            
                         
             
             
@@ -1569,7 +1594,9 @@ struct CustomSalesPerBookCategoryBarChartView: View {
                 x: .value("Prodaja", data.sales),
                 y: .value("Kategorija", data.category)
             )
-            .foregroundStyle(data.category == salesViewModel.bestSellingCategory?.category ? data.color.opacity(1) : data.color.opacity(0.6)) // Prilagođena boja za najbolju kategoriju
+            .foregroundStyle(data.category == salesViewModel.bestSellingCategory?.category
+                             ? data.color?.opacity(1) ?? Color.gray
+                             : data.color?.opacity(0.6) ?? Color.gray) // Prilagođena boja za najbolju kategoriju
             .cornerRadius(5) // Zaobljeni rubovi trake
             .opacity(data.category == salesViewModel.bestSellingCategory?.category ? 1 : 0.5) // Smanjena vidljivost za ostale kategorije
             
@@ -1606,54 +1633,61 @@ struct FullSizePieChartView: View {
                 .cornerRadius(5)
                 .foregroundStyle(by: .value("Naziv", data.category))
                 .opacity(data.category == salesViewModel.bestSellingCategory?.category ? 1 : 0.3)
-            }
-            .chartLegend(alignment: .center) {
-                HStack {
-                    ForEach(Array(salesViewModel.totalSalesPerCategory.sorted(by: { $0.sales > $1.sales }).enumerated()), id: \.element.category) { index, item in
-                        Label {
-                            Text(item.category)
-                                .padding(.top)
-                                .font(.body)
-                                .foregroundColor(.primary)
-                        } icon: {
-                            Circle()
-                                .frame(width: 12, height: 12)
-                                .foregroundStyle(item.color)
-                                .opacity(index == 0 ? 1 : 0.3)
-                            // Boja na osnovu kategorije
-                        }
-                        .padding(.trailing)
-                    }
-                }.padding(.leading)
-            }// Prikazuje legendu ispod grafikona
+            }.chartLegend(.hidden)
+            
+            
             .chartBackground { chartProxy in
                 GeometryReader { geometry in
-                    let frame = geometry[chartProxy.plotFrame!]
-                    
-                    if let bestSellingCategory = salesViewModel.bestSellingCategory {
-                        VStack(spacing: 5) {
-                            Text("Most Sold Course")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                            Text(bestSellingCategory.category)
-                                .font(.title.bold())
-                                .foregroundColor(bestSellingCategory.color)
-                            Text("\(Int(bestSellingCategory.sales)) sold")
-                                .font(.body)
-                                .foregroundColor(.secondary)
+                    if let plotFrame = chartProxy.plotFrame {
+                        let frame = geometry[plotFrame]
+
+                        if let bestSellingCategory = salesViewModel.bestSellingCategory {
+                            VStack(spacing: 5) {
+                                Text("Most Sold Course")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                Text(bestSellingCategory.category)
+                                    .font(.title.bold())
+                                    .foregroundColor(bestSellingCategory.color)
+                                Text("\(Int(bestSellingCategory.sales)) sold")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                            }
+                            .multilineTextAlignment(.center)
+                            .frame(width: frame.width * 0.6)
+                            .position(x: frame.midX, y: frame.midY)
                         }
-                        .multilineTextAlignment(.center)
-                        .frame(width: frame.width * 0.6) // Ograničimo širinu teksta unutar kruga
-                        .position(x: frame.midX, y: frame.midY) // Centriramo tekst unutar grafikona
                     }
                 }
             }
-            .frame(width: 380, height: 380) // Veći prikaz
+            .frame(width: 360, height: 360) // Veći prikaz
             //.padding()
+            customLegend
         }
         //.padding()
     }
-}
+    private var customLegend: some View {
+        HStack {
+            ForEach(Array(salesViewModel.totalSalesPerCategory.sorted(by: { $0.sales > $1.sales }).enumerated()), id: \.element.category) { index, item in
+                Label {
+                    Text(item.category)
+                        .padding(.top)
+                        .font(.footnote)
+                        .foregroundColor(.primary)
+                        .padding(.trailing, 3)
+                } icon: {
+                    Circle()
+                        .frame(width: 10, height: 10)
+                        .foregroundStyle(item.color!)
+                        .opacity(index == 0 ? 1 : 0.3)
+                }
+                
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+        
+    }
+     }
 
 
 
@@ -2563,7 +2597,7 @@ struct EarningsChartView: View {
     }
 }
 
-struct MonthlyEarnings: Identifiable {
+struct MonthlyEarnings: Identifiable, Codable {
     let id = UUID()
     let month: Date
     let grossEarnings: Double
@@ -2574,24 +2608,38 @@ class EarningsViewModel: ObservableObject {
     @Published var monthlyEarnings: [MonthlyEarnings] = []
 
     init() {
-        generateEarningsData()
+        loadEarningsData()
     }
 
-    func generateEarningsData() {
-        let calendar = Calendar.current
-        let currentDate = Date()
-
-        for monthOffset in 0..<12 {
-            if let monthDate = calendar.date(byAdding: .month, value: -monthOffset, to: currentDate) {
-                let gross = Double.random(in: 8000...15000) // Bruto zarada
-                let net = gross * 0.75                     // Neto zarada (75% bruto)
-                monthlyEarnings.append(MonthlyEarnings(month: monthDate, grossEarnings: gross, netEarnings: net))
-            }
+    func loadEarningsData() {
+        guard let url = Bundle.main.url(forResource: "earnings_data", withExtension: "json") else {
+            print("JSON file not found.")
+            return
         }
 
-        // Sortiranje po mjesecima
-        monthlyEarnings.sort { $0.month < $1.month }
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(dateFormatter())
+
+            // Dekodiraj objekat umesto niza
+            let jsonResponse = try decoder.decode(MonthlyEarningsResponse.self, from: data)
+            monthlyEarnings = jsonResponse.monthlyEarnings.sorted { $0.month < $1.month }
+
+        } catch {
+            print("Error decoding JSON: \(error)")
+        }
     }
+
+    private func dateFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }
+}
+
+struct MonthlyEarningsResponse: Codable {
+    let monthlyEarnings: [MonthlyEarnings]
 }
 
 struct EarningsLabelChartView: View {
@@ -2649,7 +2697,5 @@ struct EarningsLabelChartView: View {
 }
 
 #Preview{
-    EarningsLabelChartView(viewModel: EarningsViewModel())
-        .padding()
-        .padding(.horizontal, 10)
+    MinMaxView(viewModel: SalesViewModel(jsonName: ""))
 }
