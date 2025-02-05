@@ -269,14 +269,14 @@ struct MonthlyMinimizedSalesChartView: View {
             }
 }
 
-struct WeeklySale: Identifiable {
+struct WeeklySale: Codable, Identifiable {
     let id = UUID()
     let week: Date
     let sales: Int
-    
+
     var formattedWeek: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM dd, yyyy" // Format datuma
+        formatter.dateFormat = "MMM dd, yyyy"
         return formatter.string(from: week)
     }
 }
@@ -285,7 +285,9 @@ struct WeeklySalesChartView: View {
     @ObservedObject var salesViewModel: SalesViewModel
     let color: Color
     @State private var scrollPosition: TimeInterval = 0
+
     @State private var showAverageLine: Bool = false
+    @State private var selectedIndex: Int?
      
     enum ChartStyle: String, CaseIterable, Identifiable {
         case bar = "Bar Mark"
@@ -366,12 +368,9 @@ struct WeeklySalesChartView: View {
                 
         }
         .onAppear {
-            // Skrol pozicija na zadnju sedmicu
-            if let lastDate = salesViewModel.salesByWeek.last?.week {
-                scrollPosition = lastDate.timeIntervalSinceReferenceDate - 3600 * 24 * 7 * 4 // Pozicionira 4 sedmice unazad
-            }
-            
+            salesViewModel.loadWeeklySalesData()
         }
+        
         
         
     }
@@ -387,44 +386,65 @@ struct WeeklySalesChartView: View {
             }
             .padding(.bottom, 2)
         }
+    private func formattedDate(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy"
+        formatter.timeZone = TimeZone.current
+        return formatter.string(from: date)
+    }
+    private func debugView(data: WeeklySale) -> some View {
+        print("Date rendered: \(formattedDate(for: data.week)), Sales: \(data.sales)")
+        return EmptyView()
+    }
     
     private var barMarkView: some View {
-        VStack(alignment: .leading, spacing: 5){
+        VStack(alignment: .leading, spacing: 5) {
             Text("Bla")
                 .font(.footnote)
                 .foregroundStyle(.clear)
-        Chart(salesViewModel.salesByWeek, id: \.week) { data in
-            BarMark(
-                x: .value("Sedmica", data.week, unit: .weekOfYear),
-                y: .value("Prodaja", data.sales)
-            )
             
-            
-            
-            
-            .foregroundStyle(color)
-            .cornerRadius(5)
-            if showAverageLine {
-                RuleMark(
-                    y: .value("Prosjek prodaje", salesViewModel.averageWeeklySales)
+            Chart(salesViewModel.salesByWeek, id: \.week) { data in
+                
+                BarMark(
+                    x: .value("Sedmica", data.week, unit: .weekOfYear),
+                    y: .value("Prodaja", data.sales)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
-                .foregroundStyle(color.darker(by: 0.25))
+                .foregroundStyle(color)
+                .cornerRadius(5)
+                
+                
+                if showAverageLine {
+                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageWeeklySales))
+                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
+                        .foregroundStyle(color.darker(by: 0.25))
+                }
+            }
+            
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month, count: 1)) { value in
+                    AxisGridLine()
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).year())
+                }
+            }
+            .chartScrollableAxes(.horizontal)
+            .chartScrollPosition(x: $scrollPosition)
+            .chartXVisibleDomain(length: chartDomainLength)
+            .frame(height: 300)
+            .onAppear {
+                updateScrollPosition()
             }
         }
-        
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .month, count: 1)) { value in
-                AxisGridLine()
-                AxisTick()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).year(/*.twoDigits*/)) // Prikaz mjeseca i godine
-            }
-        }
-        .chartScrollableAxes(.horizontal)
-        .chartScrollPosition(x: $scrollPosition)
-        .chartXVisibleDomain(length: 3600 * 24 * 7 * 9) // Prikazuje 20 sedmica (umjesto samo 8)
-        .frame(height: 300)
     }
+
+    private var chartDomainLength: TimeInterval {
+        3600 * 24 * 7 * 6.5 // 6.5 sedmica
+    }
+
+    private func updateScrollPosition() {
+        if let lastDate = salesViewModel.salesByWeek.last?.week {
+            scrollPosition = lastDate.timeIntervalSinceReferenceDate
+        }
     }
     
     private var lineMarkView: some View {
@@ -468,7 +488,7 @@ struct WeeklySalesChartView: View {
             }
             .chartScrollableAxes(.horizontal)
             .chartScrollPosition(x: $scrollPosition)
-            .chartXVisibleDomain(length: 3600 * 24 * 7 * 9) // Prikazuje 20 sedmica (umjesto samo 8)
+            .chartXVisibleDomain(length: 3600 * 24 * 7 * 6.5) // Prikazuje 20 sedmica (umjesto samo 8)
             .frame(height: 300)
         }
     }
@@ -1191,8 +1211,7 @@ class SalesViewModel: ObservableObject {
     init(jsonName: String) {
         generateDummyData()
         self.salesByMonth = loadMonthlySales(from: jsonName)
-        generateRandomWeeklySalesData()
-        //generateRandomWeeklyMinMaxData()
+        
         loadWeeklyMinMaxData()
     }
 
@@ -1227,29 +1246,51 @@ class SalesViewModel: ObservableObject {
             print("Error decoding JSON: \(error)")
             return []
         }
+        
     }
     var averageSales: Double {
         let totalSales = salesByMonth.reduce(0) { $0 + $1.sales } // Zbir svih prodaja
         return Double(totalSales) / Double(salesByMonth.count) // Prosjek
         }
     
-    func generateRandomWeeklySalesData() {
-        let calendar = Calendar.current
-        let currentDate = Date()
+    func loadWeeklySalesData() {
+            guard let url = Bundle.main.url(forResource: "first-course-weekly-sales", withExtension: "json") else {
+                print("⚠️ JSON file not found.")
+                return
+            }
 
-        // Pronalazak početka trenutne sedmice
-        guard let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate)) else {
-            return
-        }
+        let decoder = JSONDecoder()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"  // Prilagodi format svom JSON-u
+        decoder.dateDecodingStrategy = .formatted(dateFormatter)
 
-        // Generiši podatke za 52 sedmice unazad (uključujući trenutnu sedmicu)
-        salesByWeek = (0..<52).map { weekOffset in
-            let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: startOfCurrentWeek) ?? Date()
-            let salesCount = Int.random(in: 200...1000) // Nasumična količina prodaja
-            return WeeklySale(week: weekStart, sales: salesCount)
-        }.reversed() // Od najstarijeg ka najnovijem
-    }
+        do {
+            let data = try Data(contentsOf: url)
+            let decodedData = try decoder.decode(WeeklySalesResponse.self, from: data)
+            salesByWeek = decodedData.weeklySales
+            salesByWeek.sort { $0.week < $1.week }
+            print("Successfully loaded sales data.")
+        } catch {
+            print("Error decoding JSON: \(error)")
+        }        }
+//    func generateRandomWeeklySalesData() {
+//        let calendar = Calendar.current
+//        let currentDate = Date()
+//
+//        // Pronalazak početka trenutne sedmice
+//        guard let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate)) else {
+//            return
+//        }
+//
+//        // Generiši podatke za 52 sedmice unazad (uključujući trenutnu sedmicu)
+//        salesByWeek = (0..<52).map { weekOffset in
+//            let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: startOfCurrentWeek) ?? Date()
+//            let salesCount = Int.random(in: 200...1000) // Nasumična količina prodaja
+//            return WeeklySale(week: weekStart, sales: salesCount)
+//        }.reversed() // Od najstarijeg ka najnovijem
+//    }
         var averageWeeklySales: Double {
+            guard !salesByWeek.isEmpty else { return 0.0 }
             let totalSales = salesByWeek.reduce(0) { $0 + $1.sales }
             return Double(totalSales) / Double(salesByWeek.count)
         }
@@ -1342,6 +1383,10 @@ struct HighestCourseSale: Identifiable, Codable {
         case category
         case sales
     }
+}
+
+struct WeeklySalesResponse: Codable {
+    let weeklySales: [WeeklySale]
 }
 
 struct MonthlyMinMaxSale: Identifiable, Equatable, Decodable {
@@ -2697,5 +2742,5 @@ struct EarningsLabelChartView: View {
 }
 
 #Preview{
-    MinMaxView(viewModel: SalesViewModel(jsonName: ""))
+    WeeklySalesChartView(salesViewModel: SalesViewModel(jsonName: ""), color: .blue)
 }
