@@ -105,8 +105,9 @@ struct TabOneView: View {
                 
                     VStack(spacing: 50) {
                         ForEach(courses) { course in
-                            let jsonName = course.chart
-                            let viewModel = SalesViewModel(jsonName: jsonName)
+                            let monthJSON = course.monthChart
+                            let weeklyJSON = course.weeklyChart
+                            let viewModel = SalesViewModel(monthJSON: monthJSON, weeklyJSON: weeklyJSON)
                             VCard(course: course, viewModel: viewModel)
                         }
                     }
@@ -157,7 +158,7 @@ struct TabTwoView: View {
     @StateObject var highestSalesViewModel = HighestSalesViewModel()
     @StateObject var earningsViewModel = EarningsViewModel()
     
-    @StateObject private var viewModel = SalesViewModel(jsonName: "first-course-monthly-sales")
+    @StateObject private var viewModel = SalesViewModel(monthJSON: "", weeklyJSON: "")
     var body: some View {
         NavigationView{
             ScrollView(.vertical, showsIndicators: true){
@@ -315,7 +316,7 @@ struct WeeklySalesChartView: View {
                 .background(Color.secondary.opacity(0.5)) // Boja slična placeholderu
                 .frame(height: 1) // Tanak divider
             HStack{
-                Text("Average: \(Int(salesViewModel.averageWeeklySales))")
+                Text("Average: \(String(format: "%.1f", salesViewModel.averageWeeklySales))")
                     .font(.body)
                     .frame(alignment: .leading)
                     .foregroundStyle(.secondary)
@@ -367,9 +368,9 @@ struct WeeklySalesChartView: View {
             
                 
         }
-        .onAppear {
-            salesViewModel.loadWeeklySalesData()
-        }
+//        .onAppear {
+//            salesViewModel.loadWeeklySalesData()
+//        }
         
         
         
@@ -438,7 +439,7 @@ struct WeeklySalesChartView: View {
     }
 
     private var chartDomainLength: TimeInterval {
-        3600 * 24 * 7 * 6.5 // 6.5 sedmica
+        3600 * 24 * 7 * 7 // 6.5 sedmica
     }
 
     private func updateScrollPosition() {
@@ -488,7 +489,7 @@ struct WeeklySalesChartView: View {
             }
             .chartScrollableAxes(.horizontal)
             .chartScrollPosition(x: $scrollPosition)
-            .chartXVisibleDomain(length: 3600 * 24 * 7 * 6.5) // Prikazuje 20 sedmica (umjesto samo 8)
+            .chartXVisibleDomain(length: 3600 * 24 * 7 * 8) // Prikazuje 20 sedmica (umjesto samo 8)
             .frame(height: 300)
         }
     }
@@ -846,7 +847,7 @@ struct WeeklyMinMaxSalesChartView: View {
         var id: Self { self }
     }
 
-    @State private var selectedChartStyle: ChartStyle = .course1
+    @State private var selectedCourse: String = "course1"
 
     var body: some View {
         VStack {
@@ -854,13 +855,16 @@ struct WeeklyMinMaxSalesChartView: View {
             HStack(spacing: 0) {
                 Text("Selected course:")
                     .foregroundStyle(.secondary)
-                Picker("Chart Type", selection: $selectedChartStyle) {
-                    ForEach(ChartStyle.allCases) {
-                        Text($0.rawValue)
-                    }
+                Picker("Select Course", selection: $selectedCourse) {
+                    Text("Course 1").tag("course1")
+                    Text("Course 2").tag("course2")
+                    Text("Course 3").tag("course3")
                 }
+
                 .pickerStyle(.menu)
-                .tint(.blue)
+                .onChange(of: selectedCourse) {_, newValue in
+                    viewModel.loadWeeklyMinMaxData(for: newValue)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
@@ -876,7 +880,12 @@ struct WeeklyMinMaxSalesChartView: View {
                     .chartScrollPosition(x: $scrollPosition)
                     .padding()
         }
+        .onAppear{
+        viewModel.loadWeeklyMinMaxData(for: selectedCourse)
     }
+        
+    }
+    
 
     private func alignmentForAnnotation(index: Int, totalCount: Int) -> Alignment {
         if index == 0 {
@@ -1208,11 +1217,11 @@ class SalesViewModel: ObservableObject {
     @Published var weeklyMinMaxSales: [WeeklyMinMaxSale] = []
     
 
-    init(jsonName: String) {
+    init(monthJSON: String, weeklyJSON: String) {
         generateDummyData()
-        self.salesByMonth = loadMonthlySales(from: jsonName)
-        
-        loadWeeklyMinMaxData()
+        self.salesByMonth = loadMonthlySales(from: monthJSON)
+        loadWeeklySalesData(from: weeklyJSON)
+        //loadWeeklyMinMaxData()
     }
 
     func generateDummyData() {
@@ -1253,8 +1262,8 @@ class SalesViewModel: ObservableObject {
         return Double(totalSales) / Double(salesByMonth.count) // Prosjek
         }
     
-    func loadWeeklySalesData() {
-            guard let url = Bundle.main.url(forResource: "first-course-weekly-sales", withExtension: "json") else {
+    func loadWeeklySalesData(from fileName: String) {
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: "json") else {
                 print("⚠️ JSON file not found.")
                 return
             }
@@ -1267,6 +1276,7 @@ class SalesViewModel: ObservableObject {
         do {
             let data = try Data(contentsOf: url)
             let decodedData = try decoder.decode(WeeklySalesResponse.self, from: data)
+            salesByWeek.removeAll()
             salesByWeek = decodedData.weeklySales
             salesByWeek.sort { $0.week < $1.week }
             print("Successfully loaded sales data.")
@@ -1319,7 +1329,7 @@ class SalesViewModel: ObservableObject {
             return formatter
         }
     
-    func loadWeeklyMinMaxData() {
+    func loadWeeklyMinMaxData(for course: String) {
             guard let url = Bundle.main.url(forResource: "weekly_min_max_sales", withExtension: "json") else {
                 print("JSON file not found.")
                 return
@@ -1330,7 +1340,7 @@ class SalesViewModel: ObservableObject {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .formatted(dateFormatter())
                 let sales = try decoder.decode([String: [WeeklyMinMaxSale]].self, from: data)
-                self.weeklyMinMaxSales = sales["weeklySales"]?.reversed() ?? []
+                self.weeklyMinMaxSales = sales[course]?.reversed() ?? []
                 
             } catch {
                 print("Error decoding JSON: \(error)")
@@ -2045,7 +2055,8 @@ struct VCard: View {
         .foregroundColor(.white)
         //        .padding(30)
         .frame(width: 360, height: 460)
-        .background(.linearGradient(colors: [course.color.opacity(1), course.color.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
+//        .background(.linearGradient(colors: [course.color.opacity(1), course.color.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .background(course.color)
         .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .shadow(color: course.color.opacity(0.3), radius: 8, x: 0, y: 12)
         
@@ -2742,5 +2753,5 @@ struct EarningsLabelChartView: View {
 }
 
 #Preview{
-    WeeklySalesChartView(salesViewModel: SalesViewModel(jsonName: ""), color: .blue)
+    WeeklySalesChartView(salesViewModel: SalesViewModel(monthJSON: "", weeklyJSON: ""), color: .blue)
 }
