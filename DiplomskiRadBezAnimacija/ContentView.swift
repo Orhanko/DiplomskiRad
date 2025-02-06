@@ -83,8 +83,8 @@ struct ContentView: View {
             }
             TabTwoView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
                 .tabItem{Label("Statistics", systemImage: "doc.text.fill")}
-//            TabThreeView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
-//                .tabItem{Label("Recent", systemImage: "clock")}
+            TabThreeView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
+                .tabItem{Label("Recent", systemImage: "clock")}
 //            TabFourView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
 //                .tabItem{Label("Notifications", systemImage: "bell")}
 //            TabFiveView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
@@ -107,7 +107,8 @@ struct TabOneView: View {
                         ForEach(courses) { course in
                             let monthJSON = course.monthChart
                             let weeklyJSON = course.weeklyChart
-                            let viewModel = SalesViewModel(monthJSON: monthJSON, weeklyJSON: weeklyJSON)
+                            let dailyJSON = course.dailyChart
+                            let viewModel = SalesViewModel(monthJSON: monthJSON, weeklyJSON: weeklyJSON, dailyJSON: dailyJSON)
                             VCard(course: course, viewModel: viewModel)
                         }
                     }
@@ -158,7 +159,7 @@ struct TabTwoView: View {
     @StateObject var highestSalesViewModel = HighestSalesViewModel()
     @StateObject var earningsViewModel = EarningsViewModel()
     
-    @StateObject private var viewModel = SalesViewModel(monthJSON: "", weeklyJSON: "")
+    @StateObject private var viewModel = SalesViewModel(monthJSON: "", weeklyJSON: "", dailyJSON: "")
     var body: some View {
         NavigationView{
             ScrollView(.vertical, showsIndicators: true){
@@ -496,6 +497,8 @@ struct WeeklySalesChartView: View {
 }
 
 struct VCardDetailsView: View{
+    @State private var showPDF = false
+    @State private var pdfURL: URL?
     enum ChartStyle: String, CaseIterable, Identifiable {
         case month = "Monthly Insight"
         case week = "Weekly Insight"
@@ -514,6 +517,15 @@ struct VCardDetailsView: View{
                 print("Monthly action triggered")
             case .week:
                 print("Weekly action triggered")
+//                if let pdfURL = PDFTableGenerator.generatePDF(salesData: viewModel.salesByWeek, fileName: "WeeklySalesReport") {
+//                    let activityViewController = UIActivityViewController(activityItems: [pdfURL], applicationActivities: nil)
+//                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+//                       let rootVC = scene.windows.first?.rootViewController {
+//                        rootVC.present(activityViewController, animated: true, completion: nil)
+//                    }
+//                } else {
+//                    print("Failed to generate PDF.")
+//                }
             case .day:
                 print("Daily action triggered")
             }
@@ -557,6 +569,12 @@ struct VCardDetailsView: View{
                             }
                         }
                     }
+            .sheet(isPresented: $showPDF) {
+                if let pdfURL = pdfURL {
+                    PDFPreviewView(url: pdfURL)
+                }
+            }
+
         
         }
     }
@@ -1217,14 +1235,14 @@ class SalesViewModel: ObservableObject {
     @Published var weeklyMinMaxSales: [WeeklyMinMaxSale] = []
     
 
-    init(monthJSON: String, weeklyJSON: String) {
-        loadDailySalesData()
+    init(monthJSON: String, weeklyJSON: String, dailyJSON: String) {
+        loadDailySalesData(from: dailyJSON)
         self.salesByMonth = loadMonthlySales(from: monthJSON)
         loadWeeklySalesData(from: weeklyJSON)
     }
 
-    func loadDailySalesData() {
-            guard let jsonURL = Bundle.main.url(forResource: "first-course-daily-sales", withExtension: "json") else {
+    func loadDailySalesData(from fileName: String) {
+            guard let jsonURL = Bundle.main.url(forResource: fileName, withExtension: "json") else {
                 print("JSON file not found.")
                 return
             }
@@ -1241,21 +1259,7 @@ class SalesViewModel: ObservableObject {
             }
         }
     
-//    func generateDummyData() {
-//            let calendar = Calendar.current
-//            let currentDate = Date()
-//
-//            // Dodajemo nasumične prodaje za svaki dan unazad 365 dana
-//            for dayOffset in 0..<365 {
-//                if let date = calendar.date(byAdding: .day, value: -dayOffset, to: currentDate) {
-//                    let randomQuantity = Int.random(in: 0...100) // Nasumična količina prodaje po danu
-//                    salesData.append(Sale(saleDate: date, quantity: randomQuantity))
-//                }
-//            }
-//
-//            // Sortiramo podatke po datumu
-//            salesData.sort { $0.saleDate < $1.saleDate }
-//        }
+
     func loadMonthlySales(from fileName: String) -> [MonthlySale] {
         guard let url = Bundle.main.url(forResource: fileName, withExtension: "json") else {
             print("JSON file not found.")
@@ -1300,22 +1304,7 @@ class SalesViewModel: ObservableObject {
         } catch {
             print("Error decoding JSON: \(error)")
         }        }
-//    func generateRandomWeeklySalesData() {
-//        let calendar = Calendar.current
-//        let currentDate = Date()
-//
-//        // Pronalazak početka trenutne sedmice
-//        guard let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate)) else {
-//            return
-//        }
-//
-//        // Generiši podatke za 52 sedmice unazad (uključujući trenutnu sedmicu)
-//        salesByWeek = (0..<52).map { weekOffset in
-//            let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: startOfCurrentWeek) ?? Date()
-//            let salesCount = Int.random(in: 200...1000) // Nasumična količina prodaja
-//            return WeeklySale(week: weekStart, sales: salesCount)
-//        }.reversed() // Od najstarijeg ka najnovijem
-//    }
+
         var averageWeeklySales: Double {
             guard !salesByWeek.isEmpty else { return 0.0 }
             let totalSales = salesByWeek.reduce(0) { $0 + $1.sales }
@@ -2824,5 +2813,5 @@ struct EarningsLabelChartView: View {
 }
 
 #Preview{
-    WeeklySalesChartView(salesViewModel: SalesViewModel(monthJSON: "", weeklyJSON: ""), color: .blue)
+    WeeklySalesChartView(salesViewModel: SalesViewModel(monthJSON: "", weeklyJSON: "", dailyJSON: ""), color: .blue)
 }
