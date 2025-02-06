@@ -497,6 +497,7 @@ struct WeeklySalesChartView: View {
 }
 
 struct VCardDetailsView: View{
+    var courseName: String
     @State private var showPDF = false
     @State private var pdfURL: URL?
     enum ChartStyle: String, CaseIterable, Identifiable {
@@ -517,17 +518,34 @@ struct VCardDetailsView: View{
                 print("Monthly action triggered")
             case .week:
                 print("Weekly action triggered")
-//                if let pdfURL = PDFTableGenerator.generatePDF(salesData: viewModel.salesByWeek, fileName: "WeeklySalesReport") {
-//                    let activityViewController = UIActivityViewController(activityItems: [pdfURL], applicationActivities: nil)
-//                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-//                       let rootVC = scene.windows.first?.rootViewController {
-//                        rootVC.present(activityViewController, animated: true, completion: nil)
-//                    }
-//                } else {
-//                    print("Failed to generate PDF.")
-//                }
+                if let pdfURL = PDFTableGenerator.generateWeeklySalesPDF(salesData: viewModel.salesByWeek.reversed(), fileName: "Weekly Sales Report for \(courseName)", courseName: courseName) {
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let rootVC = windowScene.windows.first?.rootViewController?.presentedViewController {
+                        print("⚠️ Already presenting: \(String(describing: rootVC))")
+                        rootVC.dismiss(animated: true) {
+                            self.presentPDFSharing(pdfURL: pdfURL)
+                        }
+                    } else {
+                        presentPDFSharing(pdfURL: pdfURL)
+                    }
+                            } else {
+                                print("Failed to generate PDF.")
+                            }
             case .day:
                 print("Daily action triggered")
+                if let pdfURL = PDFTableGenerator.generateDailySalesPDF(salesData: viewModel.dailySales.reversed(), fileName: "Daily Sales Report for \(courseName)", courseName: courseName) {
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let rootVC = windowScene.windows.first?.rootViewController?.presentedViewController {
+                        print("⚠️ Already presenting: \(String(describing: rootVC))")
+                        rootVC.dismiss(animated: true) {
+                            self.presentPDFSharing(pdfURL: pdfURL)
+                        }
+                    } else {
+                        presentPDFSharing(pdfURL: pdfURL)
+                    }
+                            } else {
+                                print("Failed to generate PDF.")
+                            }
             }
         }
     
@@ -576,6 +594,14 @@ struct VCardDetailsView: View{
             }
 
         
+        }
+    
+    private func presentPDFSharing(pdfURL: URL) {
+            let activityViewController = UIActivityViewController(activityItems: [pdfURL], applicationActivities: nil)
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = scene.windows.first?.rootViewController {
+                rootVC.present(activityViewController, animated: true, completion: nil)
+            }
         }
     }
 
@@ -1987,7 +2013,7 @@ struct TabThreeView: View {
     @Binding var isOnboardingPresented: Bool
     var body: some View {
         NavigationView{
-            PDFTestView()
+            PDFTestView(salesViewModel: SalesViewModel(monthJSON: "", weeklyJSON: "third-course-weekly-sales", dailyJSON: ""))
             Spacer()
             .navigationBarItems(
                 leading: Button(action: {
@@ -2145,7 +2171,7 @@ struct VCard: View {
             NavigationView{
                 //ScrollView{
                 VStack{
-                VCardDetailsView(color: course.color, viewModel: viewModel)
+                    VCardDetailsView(courseName: course.courseID, color: course.color, viewModel: viewModel)
                     .navigationTitle(course.title)// Modalni prikaz sa istim podacima
                     .navigationBarTitleDisplayMode(.inline)
                 }
@@ -2271,7 +2297,7 @@ import PDFKit
  
 
 class PDFTableGenerator {
-    static func generatePDF(salesData: [WeeklySale], fileName: String) -> URL? {
+    static func generateWeeklySalesPDF(salesData: [WeeklySale], fileName: String, courseName: String) -> URL? {
         let pdfMetaData = [
             kCGPDFContextCreator: "ImeAplikacije",
             kCGPDFContextAuthor: "ImeAplikacije",
@@ -2343,7 +2369,7 @@ class PDFTableGenerator {
         
         func drawHeaderFooter(context: UIGraphicsPDFRendererContext, pageWidth: CGFloat, pageHeight: CGFloat, margin: CGFloat, currentPage: Int, totalPages: Int) {
             // Header sa naslovom
-            let title = "Weekly Sales Report"
+            let title = "Weekly Sales Report for \(courseName)"
             let titleAttributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.boldSystemFont(ofSize: 18),
                 .foregroundColor: UIColor.black
@@ -2401,6 +2427,144 @@ class PDFTableGenerator {
             return nil
         }
     }
+    
+    static func generateDailySalesPDF(salesData: [DailySale], fileName: String, courseName: String) -> URL? {
+        let pdfMetaData = [
+            kCGPDFContextCreator: "ImeAplikacije",
+            kCGPDFContextAuthor: "ImeAplikacije",
+            kCGPDFContextTitle: "Daily Sales Report"
+        ]
+        let format = UIGraphicsPDFRendererFormat()
+        format.documentInfo = pdfMetaData as [String: Any]
+
+        let pageWidth = 612.0
+        let pageHeight = 792.0
+        let margin = 40.0
+        let contentWidth = pageWidth - 2 * margin
+        let rowHeight = 30.0
+        let columnWidths = [contentWidth / 2, contentWidth / 2]
+
+        let pdfRenderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight), format: format)
+
+        func drawTableRow(context: UIGraphicsPDFRendererContext, sale: DailySale, columnWidths: [CGFloat], margin: CGFloat, yPosition: CGFloat, isOddRow: Bool) {
+            // Naizmenične boje za redove
+            let rowBackgroundColor = isOddRow ? UIColor.lightGray.withAlphaComponent(0.3) : UIColor.lightGray.withAlphaComponent(0.1)
+            rowBackgroundColor.setFill()
+            UIBezierPath(rect: CGRect(x: margin, y: yPosition, width: columnWidths.reduce(0, +), height: 30)).fill()
+
+            // Tekst u redu
+            let week = sale.formattedDay
+            let sales = "\(sale.quantity)"
+            let textAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12),
+                .foregroundColor: UIColor.black
+            ]
+
+            [week, sales].enumerated().forEach { (index, value) in
+                value.draw(at: CGPoint(x: margin + columnWidths[0] * CGFloat(index) + 10, y: yPosition + 8), withAttributes: textAttributes)
+            }
+
+            // Linije između kolona
+            for i in 1..<columnWidths.count {
+                let lineX = margin + columnWidths[0] * CGFloat(i)
+                let linePath = UIBezierPath()
+                linePath.move(to: CGPoint(x: lineX, y: yPosition))
+                linePath.addLine(to: CGPoint(x: lineX, y: yPosition + 30))
+                linePath.lineWidth = 1
+                UIColor.lightGray.setStroke()
+                linePath.stroke()
+            }
+        }
+        
+        func drawTableHeader(context: UIGraphicsPDFRendererContext, columnWidths: [CGFloat], margin: CGFloat, yPosition: CGFloat) {
+            // Pozadina zaglavlja
+            UIColor.systemBlue.setFill()
+            UIBezierPath(rect: CGRect(x: margin, y: yPosition, width: columnWidths.reduce(0, +), height: 30)).fill()
+
+            // Tekst zaglavlja
+            let headerAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 14),
+                .foregroundColor: UIColor.white
+            ]
+            ["Day", "Sales"].enumerated().forEach { (index, header) in
+                header.draw(at: CGPoint(x: margin + columnWidths[0] * CGFloat(index) + 10, y: yPosition + 8), withAttributes: headerAttributes)
+            }
+        }
+        
+        func drawTableBorder(context: UIGraphicsPDFRendererContext, margin: CGFloat, tableTopYPosition: CGFloat, tableBottomYPosition: CGFloat) {
+            let borderPath = UIBezierPath(rect: CGRect(x: margin, y: tableTopYPosition, width: contentWidth, height: tableBottomYPosition - tableTopYPosition))
+            borderPath.lineWidth = 1
+            UIColor.black.setStroke()
+            borderPath.stroke()
+        }
+        
+        func drawHeaderFooter(context: UIGraphicsPDFRendererContext, pageWidth: CGFloat, pageHeight: CGFloat, margin: CGFloat, currentPage: Int, totalPages: Int) {
+            // Header sa naslovom
+            let title = "Daily Sales Report for \(courseName)"
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 18),
+                .foregroundColor: UIColor.black
+            ]
+            let titleSize = title.size(withAttributes: titleAttributes)
+            title.draw(at: CGPoint(x: (pageWidth - titleSize.width) / 2, y: margin), withAttributes: titleAttributes)
+            let footerText = "Author: ImeAplikacije | Created on: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none))"
+                let footerAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 10),
+                    .foregroundColor: UIColor.gray
+                ]
+                footerText.draw(at: CGPoint(x: margin, y: pageHeight - margin - 20), withAttributes: footerAttributes)
+
+                let pageText = "Page \(currentPage) of \(totalPages)"
+                let pageAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 10),
+                    .foregroundColor: UIColor.gray
+                ]
+                pageText.draw(at: CGPoint(x: pageWidth - margin - 100, y: pageHeight - margin - 20), withAttributes: pageAttributes)
+        }
+        
+        let pdfData = pdfRenderer.pdfData { context in
+            var currentPage = 1
+            let availableHeight = pageHeight - (2 * margin) - 50
+            let maxRowsPerPage = Int(availableHeight / rowHeight)
+            let totalPages = 20
+            let columnWidths = [CGFloat(contentWidth / 2), CGFloat(contentWidth / 2)]
+            var yPosition = margin + 50
+
+            context.beginPage()
+            drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages)
+            drawTableHeader(context: context, columnWidths: columnWidths, margin: margin, yPosition: yPosition)
+            yPosition += 30
+
+            var tableTopYPosition = yPosition
+            var rowCount = 0
+            salesData.enumerated().forEach { (index, sale) in
+                if yPosition + 30 > pageHeight - margin - 50 {
+                    print("Page \(currentPage) had \(rowCount) rows before starting new page.")
+                    context.beginPage()
+                    currentPage += 1
+                    drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages)
+                    drawTableHeader(context: context, columnWidths: columnWidths, margin: margin, yPosition: margin + 50)
+                    yPosition = margin + 80
+                    rowCount = 0
+                }
+
+                drawTableRow(context: context, sale: sale, columnWidths: columnWidths, margin: margin, yPosition: yPosition, isOddRow: index % 2 == 0)
+                yPosition += 30
+                rowCount += 1
+            }
+            print("Page \(currentPage) had \(rowCount) rows at the end.")
+        }
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).pdf")
+        do {
+            try pdfData.write(to: url)
+            return url
+        } catch {
+            print("Error writing PDF: \(error)")
+            return nil
+        }
+    }
+
 }
 
 struct PDFPreviewView: View {
@@ -2432,57 +2596,7 @@ struct PDFKitView: UIViewRepresentable {
 }
 
 struct PDFTestView: View {
-    let salesData: [WeeklySale] = [
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        WeeklySale(week: Date(), sales: 100),
-        WeeklySale(week: Date().addingTimeInterval(-604800), sales: 200),
-        WeeklySale(week: Date().addingTimeInterval(-1209600), sales: 300),
-        
-    ]
+    @ObservedObject var salesViewModel: SalesViewModel
     
     @State private var showPDF = false
     @State private var pdfURL: URL?
@@ -2490,7 +2604,7 @@ struct PDFTestView: View {
     var body: some View {
         VStack {
             // Prikaz podataka kao tabela
-            List(salesData) { sale in
+            List(salesViewModel.salesByWeek) { sale in
                 HStack {
                     Text(sale.formattedWeek)
                     Spacer()
@@ -2500,7 +2614,7 @@ struct PDFTestView: View {
             
             // Dugme za generisanje PDF-a
             Button(action: {
-                if let pdfURL = PDFTableGenerator.generatePDF(salesData: salesData, fileName: "WeeklySalesReport") {
+                if let pdfURL = PDFTableGenerator.generateWeeklySalesPDF(salesData: salesViewModel.salesByWeek.reversed(), fileName: "WeeklySalesReport for Course 1", courseName: "Proba") {
                     let activityViewController = UIActivityViewController(activityItems: [pdfURL], applicationActivities: nil)
                     if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                        let rootVC = scene.windows.first?.rootViewController {
