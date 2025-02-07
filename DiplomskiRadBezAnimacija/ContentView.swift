@@ -516,6 +516,18 @@ struct VCardDetailsView: View{
             switch selectedChartStyle {
             case .month:
                 print("Monthly action triggered")
+                if let screenshot = PDFTableGenerator.capturePartialScreenshot(of: MonthlySalesChartView(salesViewModel: viewModel, color: .blue), size: CGSize(width: 612, height: 280)),
+                   let pdfURL = PDFTableGenerator.generateMonthlySalesPDF(salesData: viewModel.salesByMonth.reversed(), fileName: "Monthly Sales Report for \(courseName)", courseName: courseName, screenshot: screenshot) {
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let rootVC = windowScene.windows.first?.rootViewController?.presentedViewController {
+                        print("⚠️ Already presenting: \(String(describing: rootVC))")
+                        rootVC.dismiss(animated: true) {
+                            self.presentPDFSharing(pdfURL: pdfURL)
+                        }
+                    } else {
+                        presentPDFSharing(pdfURL: pdfURL)
+                    }
+                }
             case .week:
                 print("Weekly action triggered")
                 if let pdfURL = PDFTableGenerator.generateWeeklySalesPDF(salesData: viewModel.salesByWeek.reversed(), fileName: "Weekly Sales Report for \(courseName)", courseName: courseName) {
@@ -1413,6 +1425,12 @@ class SalesViewModel: ObservableObject {
 struct MonthlySale: Decodable {
     let month: Date
     let sales: Int
+    
+    var formattedMonth: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy" // Format za mjesec i godinu, npr. "Feb 2025"
+        return formatter.string(from: month)
+    }
 }
 
 struct DailySale: Identifiable, Codable {
@@ -2428,6 +2446,113 @@ class PDFTableGenerator {
         }
     }
     
+    static func generateMonthlySalesPDF(salesData: [MonthlySale], fileName: String, courseName: String, screenshot: UIImage?) -> URL? {
+        let pdfMetaData = [
+            kCGPDFContextCreator: "ImeAplikacije",
+            kCGPDFContextAuthor: "ImeAplikacije",
+            kCGPDFContextTitle: "Monthly Sales Report"
+        ]
+        let format = UIGraphicsPDFRendererFormat()
+        format.documentInfo = pdfMetaData as [String: Any]
+
+        let pageWidth = 612.0
+        let pageHeight = 792.0
+        let margin = 40.0
+        let contentWidth = pageWidth - 2 * margin
+        let rowHeight = 30.0
+
+        let pdfRenderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight), format: format)
+
+        let pdfData = pdfRenderer.pdfData { context in
+            var currentPage = 1
+            let maxRowsPerPage = Int((pageHeight - (2 * margin) - 200) / rowHeight)
+            let totalPages = Int(ceil(Double(salesData.count) / Double(maxRowsPerPage)))
+            
+            context.beginPage()
+            
+            drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages, courseName: courseName)
+
+            if let screenshot = screenshot {
+                let imageHeight = 210.0
+                let imageWidth = contentWidth/1.2
+                let centerX = (pageWidth - imageWidth) / 2
+                print("Probicaaaaaa: \(contentWidth/1.2)")
+                let imageRect = CGRect(x: centerX, y: margin + 50, width: imageWidth, height: imageHeight)
+                screenshot.draw(in: imageRect)
+            }
+            
+            drawTableHeader(context: context, margin: margin, yPosition: margin + 270)
+            var yPosition = margin + 300
+            
+            salesData.enumerated().forEach { (index, sale) in
+                if yPosition + rowHeight > pageHeight - margin {
+                    context.beginPage()
+                    currentPage += 1
+                    drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages, courseName: courseName)
+                    drawTableHeader(context: context, margin: margin, yPosition: margin + 50)
+                    yPosition = margin + 80
+                }
+
+                drawTableRow(context: context, sale: sale, margin: margin, yPosition: yPosition, isOddRow: index % 2 == 0)
+                yPosition += rowHeight
+            }
+        }
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).pdf")
+        do {
+            try pdfData.write(to: url)
+            return url
+        } catch {
+            print("Error writing PDF: \(error)")
+            return nil
+        }
+    }
+
+    // Helper functions
+    private static func drawTableRow(context: UIGraphicsPDFRendererContext, sale: MonthlySale, margin: CGFloat, yPosition: CGFloat, isOddRow: Bool) {
+        let rowBackgroundColor = isOddRow ? UIColor.lightGray.withAlphaComponent(0.3) : UIColor.lightGray.withAlphaComponent(0.1)
+        rowBackgroundColor.setFill()
+        UIBezierPath(rect: CGRect(x: margin, y: yPosition, width: 532, height: 30)).fill()
+
+        let textAttributes: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 12), .foregroundColor: UIColor.black]
+        sale.formattedMonth.draw(at: CGPoint(x: margin + 10, y: yPosition + 8), withAttributes: textAttributes)
+        "\(sale.sales)".draw(at: CGPoint(x: margin + 300, y: yPosition + 8), withAttributes: textAttributes)
+    }
+
+    private static func drawTableHeader(context: UIGraphicsPDFRendererContext, margin: CGFloat, yPosition: CGFloat) {
+        UIColor.systemBlue.setFill()
+        UIBezierPath(rect: CGRect(x: margin, y: yPosition, width: 532, height: 30)).fill()
+
+        let headerAttributes: [NSAttributedString.Key: Any] = [.font: UIFont.boldSystemFont(ofSize: 14), .foregroundColor: UIColor.white]
+        "Month".draw(at: CGPoint(x: margin + 10, y: yPosition + 8), withAttributes: headerAttributes)
+        "Sales".draw(at: CGPoint(x: margin + 300, y: yPosition + 8), withAttributes: headerAttributes)
+    }
+
+    private static func drawHeaderFooter(context: UIGraphicsPDFRendererContext, pageWidth: CGFloat, pageHeight: CGFloat, margin: CGFloat, currentPage: Int, totalPages: Int, courseName: String) {
+        let title = "Monthly Sales Report for \(courseName)"
+        let titleAttributes: [NSAttributedString.Key: Any] = [.font: UIFont.boldSystemFont(ofSize: 18), .foregroundColor: UIColor.black]
+        let titleSize = title.size(withAttributes: titleAttributes)
+        title.draw(at: CGPoint(x: (pageWidth - titleSize.width) / 2, y: margin), withAttributes: titleAttributes)
+
+        let footerText = "Author: ImeAplikacije | Created on: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none))"
+        let footerAttributes: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 10), .foregroundColor: UIColor.gray]
+        footerText.draw(at: CGPoint(x: margin, y: pageHeight - margin - 20), withAttributes: footerAttributes)
+
+        let pageText = "Page \(currentPage) of \(totalPages)"
+        pageText.draw(at: CGPoint(x: pageWidth - margin - 100, y: pageHeight - margin - 20), withAttributes: footerAttributes)
+    }
+    
+    static func capturePartialScreenshot<Content: View>(of view: Content, size: CGSize) -> UIImage? {
+        let controller = UIHostingController(rootView: view)
+        controller.view.bounds = CGRect(origin: .zero, size: size)
+        controller.view.overrideUserInterfaceStyle = .light
+        controller.view.backgroundColor = .clear
+
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
+        }
+    }
     static func generateDailySalesPDF(salesData: [DailySale], fileName: String, courseName: String) -> URL? {
         let pdfMetaData = [
             kCGPDFContextCreator: "ImeAplikacije",
@@ -2924,6 +3049,15 @@ struct EarningsLabelChartView: View {
         formatter.shortStandaloneMonthSymbols[number - 1]
     }
     
+}
+
+extension UIView {
+    func takeScreenshot() -> UIImage? {
+        let renderer = UIGraphicsImageRenderer(bounds: bounds)
+        return renderer.image { context in
+            layer.render(in: context.cgContext)
+        }
+    }
 }
 
 #Preview{
