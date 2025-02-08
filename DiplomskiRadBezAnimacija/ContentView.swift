@@ -760,7 +760,8 @@ struct MonthlyMinMaxSalesChartView: View {
 }
 
 struct MinMaxView: View {
-    
+    @State private var showPDF = false
+    @State private var pdfURL: URL?
     enum ChartStyle: String, CaseIterable, Identifiable {
         case month = "Month"
         case week = "Week"
@@ -769,6 +770,9 @@ struct MinMaxView: View {
     }
     @ObservedObject var viewModel: SalesViewModel
     @State private var selectedChartStyle: ChartStyle = .month
+    @State private var selectedWeeklyCourse: String = "course1"
+
+    @State private var displayString: String = "Course 1"
     
     var body: some View {
         VStack{
@@ -788,16 +792,61 @@ struct MinMaxView: View {
             .padding(.bottom, 10)
             ZStack {
                 if selectedChartStyle == .month {
+                    
                     MonthlyMinMaxSalesChartView(viewModel: viewModel)
                         .transition(.opacity)
                 } else if selectedChartStyle == .week{
-                    WeeklyMinMaxSalesChartView(viewModel: viewModel)
+                    
+                    WeeklyMinMaxSalesChartView(viewModel: viewModel, selectedCourse: $selectedWeeklyCourse, displayValue: $displayString)
                         .transition(.opacity)
                 }
                         
                 }.animation(.easeInOut(duration: 0.25), value: selectedChartStyle)
             Spacer()
                 
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: probicaDjo) {
+                    Image(systemName: "printer.filled.and.paper")
+                }
+            }
+        }
+        .sheet(isPresented: $showPDF) {
+            if let pdfURL = pdfURL {
+                PDFPreviewView(url: pdfURL)
+            }
+        }
+    }
+    
+    private func presentPDFSharing(pdfURL: URL) {
+            let activityViewController = UIActivityViewController(activityItems: [pdfURL], applicationActivities: nil)
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = scene.windows.first?.rootViewController {
+                rootVC.present(activityViewController, animated: true, completion: nil)
+            }
+        }
+
+    
+    func probicaDjo(){
+        switch selectedChartStyle{
+        case .month:
+            print("Mjesec roknut")
+        case .week:
+            print("Sigili: \(displayString)")
+            if let pdfURL = PDFTableGenerator.generateWeeklyMinMaxSalesPDF(salesData: viewModel.weeklyMinMaxSales.reversed(), fileName: "Weekly Min-Max Sales Report for \(displayString)", courseName: displayString) {
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let rootVC = windowScene.windows.first?.rootViewController?.presentedViewController {
+                    print("⚠️ Already presenting: \(String(describing: rootVC))")
+                    rootVC.dismiss(animated: true) {
+                        self.presentPDFSharing(pdfURL: pdfURL)
+                    }
+                } else {
+                    presentPDFSharing(pdfURL: pdfURL)
+                }
+                        } else {
+                            print("Failed to generate PDF.")
+                        }
         }
     }
 }
@@ -903,8 +952,11 @@ struct WeeklyMinMaxSalesChartView: View {
         var id: Self { self }
     }
 
-    @State private var selectedCourse: String = "course1"
-
+    let courses = ["course1", "course2", "course3"]
+        let courseDisplayNames = ["Course 1", "Course 2", "Course 3"]
+    @Binding var selectedCourse: String
+    @Binding var displayValue: String
+    
     var body: some View {
         VStack {
             // Picker za kurs
@@ -912,15 +964,20 @@ struct WeeklyMinMaxSalesChartView: View {
                 Text("Selected course:")
                     .foregroundStyle(.secondary)
                 Picker("Select Course", selection: $selectedCourse) {
-                    Text("Course 1").tag("course1")
-                    Text("Course 2").tag("course2")
-                    Text("Course 3").tag("course3")
-                }
+                                ForEach(0..<courses.count, id: \.self) { index in
+                                    Text(courseDisplayNames[index]).tag(courses[index])
+                                }
+                            }
 
                 .pickerStyle(.menu)
                 .onChange(of: selectedCourse) {_, newValue in
-                    viewModel.loadWeeklyMinMaxData(for: newValue)
-                }
+                                if let selectedIndex = courses.firstIndex(of: newValue) {
+                                    displayValue = "Course \(selectedIndex+1)"  // Ažuriraj displayValue s indeksom
+                                }
+
+                                // Poziv API funkcije
+                                viewModel.loadWeeklyMinMaxData(for: newValue)
+                            }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
@@ -1477,6 +1534,12 @@ struct WeeklyMinMaxSale: Identifiable, Decodable {
     let week: Date
     let maxSales: Int
     let minSales: Int
+    
+    var formattedWeek: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM dd, yyyy"
+        return formatter.string(from: week)
+    }
 }
 
 import SwiftUI
@@ -1638,7 +1701,9 @@ struct SectorMarkView: View {
 }
 
 struct SalesPerBookCategoryView: View {
-    
+    @State private var showPDF = false
+    @State private var pdfURL: URL?
+
     enum ChartStyle: String, CaseIterable, Identifiable {
         case pie = "Pie Chart"
         case bar = "Bar Chart"
@@ -1698,7 +1763,42 @@ struct SalesPerBookCategoryView: View {
             
         }
         .padding()
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: generatePDF) {
+                            Image(systemName: "printer.filled.and.paper")
+                        }
+                    }
+                }
+        .sheet(isPresented: $showPDF) {
+            if let pdfURL = pdfURL {
+                PDFPreviewView(url: pdfURL)
+            }
+        }
     }
+    
+    func generatePDF(){
+        if let screenshot = PDFTableGenerator.captureSalesPerCourseCategoryView(view: CustomSalesPerBookCategoryBarChartView(salesViewModel: viewModel), size: CGSize(width: 532, height: 400)),
+           let pdfURL = PDFTableGenerator.generateSalesPerCourseCategoryViewPDF(fileName: "Sales per Course", chartImage: screenshot) {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = windowScene.windows.first?.rootViewController?.presentedViewController {
+                print("⚠️ Already presenting: \(String(describing: rootVC))")
+                rootVC.dismiss(animated: true) {
+                    self.presentPDFSharing(pdfURL: pdfURL)
+                }
+            } else {
+                presentPDFSharing(pdfURL: pdfURL)
+            }
+        }
+    }
+    
+    private func presentPDFSharing(pdfURL: URL) {
+            let activityViewController = UIActivityViewController(activityItems: [pdfURL], applicationActivities: nil)
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = scene.windows.first?.rootViewController {
+                rootVC.present(activityViewController, animated: true, completion: nil)
+            }
+        }
 }
 
 struct CustomSalesPerBookCategoryBarChartView: View {
@@ -2470,14 +2570,14 @@ class PDFTableGenerator {
             
             context.beginPage()
             
-            drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages, courseName: courseName)
+            drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages, courseName: courseName, title: "Monthly Sales Report for \(courseName)")
 
             if let screenshot = screenshot {
                 let imageHeight = 210.0
                 let imageWidth = contentWidth/1.2
                 let centerX = (pageWidth - imageWidth) / 2
                 print("Probicaaaaaa: \(contentWidth/1.2)")
-                let imageRect = CGRect(x: centerX, y: margin + 50, width: imageWidth, height: imageHeight)
+                let imageRect = CGRect(x: centerX, y: margin + 49, width: imageWidth, height: imageHeight)
                 screenshot.draw(in: imageRect)
             }
             
@@ -2488,7 +2588,7 @@ class PDFTableGenerator {
                 if yPosition + rowHeight > pageHeight - margin {
                     context.beginPage()
                     currentPage += 1
-                    drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages, courseName: courseName)
+                    drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages, courseName: courseName, title: "Monthly Sales Report for \(courseName)")
                     drawTableHeader(context: context, margin: margin, yPosition: margin + 50)
                     yPosition = margin + 80
                 }
@@ -2528,8 +2628,8 @@ class PDFTableGenerator {
         "Sales".draw(at: CGPoint(x: margin + 300, y: yPosition + 8), withAttributes: headerAttributes)
     }
 
-    private static func drawHeaderFooter(context: UIGraphicsPDFRendererContext, pageWidth: CGFloat, pageHeight: CGFloat, margin: CGFloat, currentPage: Int, totalPages: Int, courseName: String) {
-        let title = "Monthly Sales Report for \(courseName)"
+    private static func drawHeaderFooter(context: UIGraphicsPDFRendererContext, pageWidth: CGFloat, pageHeight: CGFloat, margin: CGFloat, currentPage: Int, totalPages: Int, courseName: String, title: String) {
+        let title = title
         let titleAttributes: [NSAttributedString.Key: Any] = [.font: UIFont.boldSystemFont(ofSize: 18), .foregroundColor: UIColor.black]
         let titleSize = title.size(withAttributes: titleAttributes)
         title.draw(at: CGPoint(x: (pageWidth - titleSize.width) / 2, y: margin), withAttributes: titleAttributes)
@@ -2553,6 +2653,184 @@ class PDFTableGenerator {
             controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
         }
     }
+    
+    static func generateWeeklyMinMaxSalesPDF(salesData: [WeeklyMinMaxSale], fileName: String, courseName: String) -> URL? {
+        let pdfMetaData = [
+            kCGPDFContextCreator: "ImeAplikacije",
+            kCGPDFContextAuthor: "ImeAplikacije",
+            kCGPDFContextTitle: "Weekly Min-Max Sales Report"
+        ]
+        let format = UIGraphicsPDFRendererFormat()
+        format.documentInfo = pdfMetaData as [String: Any]
+
+        let pageWidth = 612.0
+        let pageHeight = 792.0
+        let margin = 40.0
+        let contentWidth = pageWidth - 2 * margin
+        let rowHeight = 30.0
+        let columnWidths = [CGFloat(contentWidth / 3), CGFloat(contentWidth / 3), CGFloat(contentWidth / 3)]
+
+        let pdfRenderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight), format: format)
+
+        func drawTableRow(context: UIGraphicsPDFRendererContext, sale: WeeklyMinMaxSale, columnWidths: [CGFloat], margin: CGFloat, yPosition: CGFloat, isOddRow: Bool) {
+            let rowBackgroundColor = isOddRow ? UIColor.lightGray.withAlphaComponent(0.3) : UIColor.lightGray.withAlphaComponent(0.1)
+            rowBackgroundColor.setFill()
+            UIBezierPath(rect: CGRect(x: margin, y: yPosition, width: columnWidths.reduce(0, +), height: rowHeight)).fill()
+
+            let week = sale.formattedWeek
+            let maxSales = "\(sale.maxSales)"
+            let minSales = "\(sale.minSales)"
+            let textAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12),
+                .foregroundColor: UIColor.black
+            ]
+
+            [week, maxSales, minSales].enumerated().forEach { (index, value) in
+                value.draw(at: CGPoint(x: margin + columnWidths[index] * CGFloat(index) + 10, y: yPosition + 8), withAttributes: textAttributes)
+            }
+
+            for i in 1..<columnWidths.count {
+                let lineX = margin + columnWidths[0] * CGFloat(i)
+                let linePath = UIBezierPath()
+                linePath.move(to: CGPoint(x: lineX, y: yPosition))
+                linePath.addLine(to: CGPoint(x: lineX, y: yPosition + rowHeight))
+                linePath.lineWidth = 1
+                UIColor.lightGray.setStroke()
+                linePath.stroke()
+            }
+        }
+
+        func drawTableHeader(context: UIGraphicsPDFRendererContext, columnWidths: [CGFloat], margin: CGFloat, yPosition: CGFloat) {
+            UIColor.systemBlue.setFill()
+            UIBezierPath(rect: CGRect(x: margin, y: yPosition, width: columnWidths.reduce(0, +), height: rowHeight)).fill()
+
+            let headerAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 14),
+                .foregroundColor: UIColor.white
+            ]
+            ["Week", "Max Sales", "Min Sales"].enumerated().forEach { (index, header) in
+                header.draw(at: CGPoint(x: margin + columnWidths[index] * CGFloat(index) + 10, y: yPosition + 8), withAttributes: headerAttributes)
+            }
+        }
+
+        func drawHeaderFooter(context: UIGraphicsPDFRendererContext, pageWidth: CGFloat, pageHeight: CGFloat, margin: CGFloat, currentPage: Int, totalPages: Int) {
+            let title = "Weekly Min-Max Sales Report for \(courseName)"
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 18),
+                .foregroundColor: UIColor.black
+            ]
+            let titleSize = title.size(withAttributes: titleAttributes)
+            title.draw(at: CGPoint(x: (pageWidth - titleSize.width) / 2, y: margin), withAttributes: titleAttributes)
+
+            let footerText = "Author: ImeAplikacije | Created on: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none))"
+            let footerAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 10),
+                .foregroundColor: UIColor.gray
+            ]
+            footerText.draw(at: CGPoint(x: margin, y: pageHeight - margin - 20), withAttributes: footerAttributes)
+
+            let pageText = "Page \(currentPage) of \(totalPages)"
+            pageText.draw(at: CGPoint(x: pageWidth - margin - 100, y: pageHeight - margin - 20), withAttributes: footerAttributes)
+        }
+
+        let pdfData = pdfRenderer.pdfData { context in
+            var currentPage = 1
+            let totalPages = Int(ceil(Double(salesData.count) / 20))
+            var yPosition = margin + 50
+
+            context.beginPage()
+            drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages)
+            drawTableHeader(context: context, columnWidths: columnWidths, margin: margin, yPosition: yPosition)
+            yPosition += rowHeight
+
+            salesData.enumerated().forEach { (index, sale) in
+                if yPosition + rowHeight > pageHeight - margin - 50 {
+                    context.beginPage()
+                    currentPage += 1
+                    drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages)
+                    drawTableHeader(context: context, columnWidths: columnWidths, margin: margin, yPosition: margin + 50)
+                    yPosition = margin + 80
+                }
+
+                drawTableRow(context: context, sale: sale, columnWidths: columnWidths, margin: margin, yPosition: yPosition, isOddRow: index % 2 == 0)
+                yPosition += rowHeight
+            }
+        }
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).pdf")
+        do {
+            try pdfData.write(to: url)
+            return url
+        } catch {
+            print("Error writing PDF: \(error)")
+            return nil
+        }
+    }
+
+    
+    static func captureSalesPerCourseCategoryView<Content: View>(view: Content, size: CGSize) -> UIImage? {
+        let controller = UIHostingController(rootView: view)
+        controller.view.bounds = CGRect(origin: .zero, size: size)
+        controller.view.overrideUserInterfaceStyle = .light
+        controller.view.backgroundColor = .clear
+
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
+        }
+    }
+    
+    static func generateSalesPerCourseCategoryViewPDF(fileName: String, chartImage: UIImage?) -> URL? {
+        let pdfMetaData = [
+            kCGPDFContextCreator: "ImeAplikacije",
+            kCGPDFContextAuthor: "ImeAplikacije",
+            kCGPDFContextTitle: "Sales per Category Report with Chart"
+        ]
+        let format = UIGraphicsPDFRendererFormat()
+        format.documentInfo = pdfMetaData as [String: Any]
+
+        let pageWidth = 612.0
+        let pageHeight = 792.0
+        let margin = 40.0
+        let contentWidth = pageWidth - 2 * margin
+
+        let pdfRenderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight), format: format)
+
+        let pdfData = pdfRenderer.pdfData { context in
+            var currentPage = 1
+            let totalPages = 1
+
+            context.beginPage()
+
+            // Header i footer
+            drawHeaderFooter(context: context, pageWidth: pageWidth, pageHeight: pageHeight, margin: margin, currentPage: currentPage, totalPages: totalPages, courseName: "courseName", title: "Sales per Course Report")
+
+            // Prikaz grafikona na sredini stranice
+            if let chartImage = chartImage {
+                let imageHeight = 400.0
+                let imageWidth = contentWidth
+                print("Proba u sales per course za sirinu: \(imageWidth)")
+                print("Proba u sales per course za visinu: \(imageHeight)")
+                
+                let centerX = (pageWidth - imageWidth) / 2
+                
+                let imageRect = CGRect(x: centerX, y: margin + 130, width: imageWidth, height: imageHeight)
+                chartImage.draw(in: imageRect)
+            }
+
+        }
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).pdf")
+        do {
+            try pdfData.write(to: url)
+            return url
+        } catch {
+            print("Error writing PDF: \(error)")
+            return nil
+        }
+    }
+
+    
     static func generateDailySalesPDF(salesData: [DailySale], fileName: String, courseName: String) -> URL? {
         let pdfMetaData = [
             kCGPDFContextCreator: "ImeAplikacije",
