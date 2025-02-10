@@ -2308,6 +2308,11 @@ struct TabThreeView: View {
                 }
                 
                 
+            }.toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Text("ADMIN")
+                        .foregroundColor(.secondary)
+                }
             }
             
             
@@ -2320,7 +2325,7 @@ struct TabThreeView: View {
     
     func formattedDate(from date: Date) -> String {
             let formatter = DateFormatter()
-            formatter.dateFormat = "d. MMMM yyyy 'at' HH:mm:ss"
+            formatter.dateFormat = "d. MMMM yyyy 'at' HH:mm"
             formatter.locale = Locale(identifier: "en_US")
             return formatter.string(from: date)
         }
