@@ -377,6 +377,7 @@ struct WeeklySalesChartView: View {
     enum ChartStyle: String, CaseIterable, Identifiable {
         case bar = "Bar Mark"
         case line = "Line Mark"
+        case roundedLineMark = "Line Mark 2"
         
         var id: Self { self }
     }
@@ -389,8 +390,11 @@ struct WeeklySalesChartView: View {
                 if selectedChartStyle == .bar {
                     barMarkView
                         .transition(.opacity)
-                } else {
+                } else if selectedChartStyle == .line {
                     lineMarkView
+                        .transition(.opacity)
+                }else{
+                    roundedLineMarkView
                         .transition(.opacity)
                 }
             }
@@ -533,6 +537,52 @@ struct WeeklySalesChartView: View {
     }
     
     private var lineMarkView: some View {
+        VStack(alignment: .leading, spacing: 5){
+            Text("Bla")
+                .font(.footnote)
+                .foregroundStyle(.clear)
+            Chart(salesViewModel.salesByWeek, id: \.week) { data in
+                AreaMark(
+                    x: .value("Sedmica", data.week, unit: .weekOfYear),
+                    y: .value("Prodaja", data.sales)
+                )
+                    .foregroundStyle(
+                        .linearGradient(
+                            Gradient(colors: [color.darker(by: 0.25).opacity(0.4), .clear]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                LineMark(
+                    x: .value("Sedmica", data.week, unit: .weekOfYear),
+                    y: .value("Prodaja", data.sales)
+                )
+                
+                .foregroundStyle(color)
+                .shadow(color: color.darker(by: 0.25).opacity(0.3), radius: 15, x: 0, y: 30)
+                if showAverageLine{
+                    RuleMark(
+                        y: .value("Average Sales", salesViewModel.averageWeeklySales)
+                    )
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
+                    .foregroundStyle(color)
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month, count: 1)) { _ in
+                    AxisGridLine()
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).year())
+                }
+            }
+            .chartScrollableAxes(.horizontal)
+            .chartScrollPosition(x: $scrollPosition)
+            .chartXVisibleDomain(length: 3600 * 24 * 7 * 8) // Prikazuje 20 sedmica (umjesto samo 8)
+            .frame(height: 300)
+        }
+    }
+    
+    private var roundedLineMarkView: some View {
         VStack(alignment: .leading, spacing: 5){
             Text("Bla")
                 .font(.footnote)
@@ -1282,6 +1332,7 @@ struct MonthlySalesChartView: View {
     enum ChartStyle: String, CaseIterable, Identifiable {
         case bar = "Bar Mark"
         case line = "Line Mark"
+        case roundedLine = "Line Mark 2"
         
         var id: Self { self }
     }
@@ -1298,8 +1349,11 @@ struct MonthlySalesChartView: View {
                 if selectedChartStyle == .bar {
                     barMarkView
                         .transition(.opacity)
-                } else {
+                } else if selectedChartStyle == .line {
                     lineMarkView
+                        .transition(.opacity)
+                }else{
+                    roundedlineMarkView
                         .transition(.opacity)
                 }
             }
@@ -1404,6 +1458,48 @@ struct MonthlySalesChartView: View {
     }
     
     private var lineMarkView: some View {
+        VStack(alignment: .leading, spacing: 5){
+            Text("Bla")
+                .font(.footnote)
+                .foregroundStyle(.clear)
+        Chart(salesViewModel.salesByMonth, id: \.month) { data in
+            AreaMark(
+                x: .value("Mjesec", data.month, unit: .month),
+                y: .value("Prodaja", data.sales)
+            )
+                .foregroundStyle(
+                    .linearGradient(
+                        Gradient(colors: [color.darker(by: 0.25).opacity(0.4), .clear]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            LineMark(
+                x: .value("Mjesec", data.month, unit: .month),
+                y: .value("Prodaja", data.sales)
+            )
+            
+            .foregroundStyle(color)
+            .shadow(color: color.darker(by: 0.25).opacity(0.3), radius: 15, x: 0, y: 30)
+            if showAverageLine{
+                RuleMark(
+                    y: .value("Average Sales", salesViewModel.averageSales)
+                )
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
+                .foregroundStyle(color)
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .month)) { _ in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel(format: .dateTime.month(.abbreviated), centered: true)
+            }
+        }
+        .frame(height: 300)
+    }
+    }
+    private var roundedlineMarkView: some View {
         VStack(alignment: .leading, spacing: 5){
             Text("Bla")
                 .font(.footnote)
@@ -2072,6 +2168,7 @@ struct DailySalesChartView: View {
     enum ChartStyle: String, CaseIterable, Identifiable {
         case bar = "Bar Mark"
         case line = "Line Mark"
+        case roundedLine = "Line Mark 2"
         
         var id: Self { self }
     }
@@ -2085,8 +2182,11 @@ struct DailySalesChartView: View {
                 if selectedChartStyle == .bar {
                     barMarkView
                         .transition(.opacity)
-                } else {
+                } else if selectedChartStyle == .line {
                     lineMarkView
+                        .transition(.opacity)
+                }else{
+                    roundedlineMarkView
                         .transition(.opacity)
                 }
             }
@@ -2208,6 +2308,51 @@ struct DailySalesChartView: View {
     }
     
     private var lineMarkView: some View{
+        VStack(alignment: .leading, spacing: 5){
+            Text("\(scrollPositionString) – \(scrollPositionEndString)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Chart(salesViewModel.dailySales, id: \.saleDate) {
+                
+                LineMark(
+                    x: .value("Day", $0.saleDate, unit: .day),
+                    y: .value("Sales", $0.quantity)
+                    
+                ).foregroundStyle(color)
+                
+                .shadow(color: color, radius: 4, x: 0, y: 5)
+//                if showAverageLine {
+//                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageDailySales))
+//                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
+//                        .foregroundStyle(color.darker(by: 0.25))
+//                }
+
+                
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 10)) { value in
+                    AxisGridLine() // Prikazuje linije svake 7. oznake (jednom sedmično)
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                    
+                    
+                }
+            }
+            .chartScrollableAxes(.horizontal)
+            
+            .chartXVisibleDomain(length: 3600 * 24 * Double(numberOfDisplayedDays))
+            // shows 30 days
+            // snap to begining of month when release scrolling
+            .chartScrollTargetBehavior(
+                .valueAligned(
+                    matching: .init(hour: 0),
+                    majorAlignment: .matching(.init(day: 1))))
+            .chartScrollPosition(x: $scrollPosition)
+            .frame(height: 300)
+        }
+    }
+    
+    private var roundedlineMarkView: some View{
         VStack(alignment: .leading, spacing: 5){
             Text("\(scrollPositionString) – \(scrollPositionEndString)")
                 .font(.footnote)
