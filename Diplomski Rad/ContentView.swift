@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  DiplomskiRad
+//  Diplomski Rad
 //
 //  Created by Orhan Pojskic on 13.06.2024..
 //

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		4745CE3C2D204EF700011191 /* DiplomskiRadBezAnimacija.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DiplomskiRadBezAnimacija.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4745CE3C2D204EF700011191 /* Diplomski Rad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Diplomski Rad.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,9 +16,9 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
-		4745CE3E2D204EF700011191 /* DiplomskiRadBezAnimacija */ = {
+		4745CE3E2D204EF700011191 /* Diplomski Rad */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = DiplomskiRadBezAnimacija;
+			path = "Diplomski Rad";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -37,7 +37,7 @@
 		4745CE332D204EF700011191 = {
 			isa = PBXGroup;
 			children = (
-				4745CE3E2D204EF700011191 /* DiplomskiRadBezAnimacija */,
+				4745CE3E2D204EF700011191 /* Diplomski Rad */,
 				4745CE3D2D204EF700011191 /* Products */,
 				472445EC2D314DCD00DC8D5E /* Models */,
 			);
@@ -46,7 +46,7 @@
 		4745CE3D2D204EF700011191 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				4745CE3C2D204EF700011191 /* DiplomskiRadBezAnimacija.app */,
+				4745CE3C2D204EF700011191 /* Diplomski Rad.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -54,9 +54,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		4745CE3B2D204EF700011191 /* DiplomskiRadBezAnimacija */ = {
+		4745CE3B2D204EF700011191 /* Diplomski Rad */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 4745CE4A2D204EF900011191 /* Build configuration list for PBXNativeTarget "DiplomskiRadBezAnimacija" */;
+			buildConfigurationList = 4745CE4A2D204EF900011191 /* Build configuration list for PBXNativeTarget "Diplomski Rad" */;
 			buildPhases = (
 				4745CE382D204EF700011191 /* Sources */,
 				4745CE392D204EF700011191 /* Frameworks */,
@@ -68,13 +68,13 @@
 			);
 			fileSystemSynchronizedGroups = (
 				472445EC2D314DCD00DC8D5E /* Models */,
-				4745CE3E2D204EF700011191 /* DiplomskiRadBezAnimacija */,
+				4745CE3E2D204EF700011191 /* Diplomski Rad */,
 			);
-			name = DiplomskiRadBezAnimacija;
+			name = "Diplomski Rad";
 			packageProductDependencies = (
 			);
 			productName = DiplomskiRadBezAnimacija;
-			productReference = 4745CE3C2D204EF700011191 /* DiplomskiRadBezAnimacija.app */;
+			productReference = 4745CE3C2D204EF700011191 /* Diplomski Rad.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -92,7 +92,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 4745CE372D204EF700011191 /* Build configuration list for PBXProject "DiplomskiRadBezAnimacija" */;
+			buildConfigurationList = 4745CE372D204EF700011191 /* Build configuration list for PBXProject "Diplomski Rad" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -106,7 +106,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				4745CE3B2D204EF700011191 /* DiplomskiRadBezAnimacija */,
+				4745CE3B2D204EF700011191 /* Diplomski Rad */,
 			);
 		};
 /* End PBXProject section */
@@ -258,7 +258,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"DiplomskiRadBezAnimacija/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Diplomski Rad/Preview Content\"";
 				DEVELOPMENT_TEAM = L856TH7U8P;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -288,7 +288,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"DiplomskiRadBezAnimacija/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Diplomski Rad/Preview Content\"";
 				DEVELOPMENT_TEAM = L856TH7U8P;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -314,7 +314,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		4745CE372D204EF700011191 /* Build configuration list for PBXProject "DiplomskiRadBezAnimacija" */ = {
+		4745CE372D204EF700011191 /* Build configuration list for PBXProject "Diplomski Rad" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4745CE482D204EF900011191 /* Debug */,
@@ -323,7 +323,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		4745CE4A2D204EF900011191 /* Build configuration list for PBXNativeTarget "DiplomskiRadBezAnimacija" */ = {
+		4745CE4A2D204EF900011191 /* Build configuration list for PBXNativeTarget "Diplomski Rad" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4745CE4B2D204EF900011191 /* Debug */,
