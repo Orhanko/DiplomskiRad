@@ -8,10 +8,15 @@
 import SwiftUI
 
 @main
-struct DiplomskiRadBezAnimacijaApp: App {
+struct DiplomskiRad: App {
     var body: some Scene {
         WindowGroup {
+//            TabTwoView(onLogout: {
+//                print("Log out")
+//            })
             ContentView()
+            //EarningsDetailGridView(viewModel: EarningsViewModel())
+                
         }
     }
 }

@@ -8,31 +8,6 @@
 import SwiftUI
 import Charts
 
-extension UIImage {
-    func crop(to rect: CGRect) -> UIImage? {
-        guard let cgImage = self.cgImage?.cropping(to: rect) else { return nil }
-        return UIImage(cgImage: cgImage, scale: self.scale, orientation: self.imageOrientation)
-    }
-}
-
-extension Color {
-    func darker(by percentage: CGFloat = 0.2) -> Color {
-        let uiColor = UIColor(self) // Pretvaramo SwiftUI `Color` u `UIColor`
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-
-        if uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
-            return Color(UIColor(
-                red: max(red - percentage, 0),
-                green: max(green - percentage, 0),
-                blue: max(blue - percentage, 0),
-                alpha: alpha
-            ))
-        }
-
-        return self // Vraća istu boju ako nije uspjelo
-    }
-}
-
 struct ContentView: View {
     @State private var lastLoginDate: Date? = nil
     @State private var isLoggedIn = false
@@ -70,244 +45,12 @@ struct ContentView: View {
                     isLoggedIn = false
                 }
     }
-    
-    
 }
 
-struct LoginView: View {
-    @State private var username = ""
-    @State private var password = ""
-    @State private var errorMessage = ""
-    @State private var isLoading = false
-    @Binding var lastLoginDate: Date?  // Binding za prijenos podataka
-    var onLogin: (String, String) -> Void
 
-    var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 100, height: 100)
-                .foregroundColor(.blue)
-            Spacer()
-            Text("Welcome to Login Page")
-                .font(.title)
-                .fontWeight(.bold)
-
-            TextField("Username", text: $username)
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(10)
-//                    .shadow(color: .gray.opacity(0.3), radius: 5, x: 0, y: 2)
-                    .padding(.horizontal)
-                    .autocapitalization(.none)
-
-            SecureField("Password", text: $password)
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(10)
-//                    .shadow(color: .gray.opacity(0.3), radius: 5, x: 0, y: 2)
-                    .padding(.horizontal)
-                    .autocapitalization(.none)
-                
-            if isLoading {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                    
-            } else {
-                Spacer().frame(height: 20)  // Rezervirano mjesto
-            }
-
-            Button(action: {
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isLoading = true
-                                    
-                                }
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                if username == "user" && password == "password" {
-                                    onLogin(username, password)
-                                    lastLoginDate = Date()
-                                    errorMessage = ""  // Reset error message on success
-                                } else {
-                                    errorMessage = "Incorrect username or password. Please try again."
-                                }
-                                isLoading = false
-                            }
-            }) {
-                Text("Login")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
-                    .padding(.horizontal)
-                            }
-            
-            if !errorMessage.isEmpty {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundColor(.red)
-                            
-            }else{
-                Text("errorMessage")
-                    .font(.footnote)
-                    .foregroundColor(.clear)
-            }
-        Spacer()
-            
-            
-            
-        }
-        .padding()
-    }
-}
-
-struct MainView: View {
-    @Binding var lastLoginDate: Date?
-    var onLogout: () -> Void
-    var body: some View{
-        TabView {
-            TabOneView(onLogout: onLogout)
-            .tabItem {
-                Label("Courses", systemImage: "bubble.left.and.bubble.right")
-            }
-            TabTwoView(onLogout: onLogout)
-                .tabItem{Label("Statistics", systemImage: "doc.text.fill")}
-            TabThreeView(lastLoginDate: $lastLoginDate, onLogout: onLogout)
-                .tabItem{Label("Profile", systemImage: "person.circle.fill")}
-//            TabFourView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
-//                .tabItem{Label("Notifications", systemImage: "bell")}
-//            TabFiveView(isMenuOpen: $isMenuOpen, isOnboardingPresented: $isOnboardingPresented)
-//                .tabItem{Label("Profile", systemImage: "person")}
-            
-        }
-    }
-    
-    
-
-}
-
-struct TabOneView: View {
-    var onLogout: () -> Void
-    
-    var body: some View {
-        NavigationView{
-            ScrollView(.vertical, showsIndicators: true){
-                
-                    VStack(spacing: 50) {
-                        ForEach(courses) { course in
-                            let monthJSON = course.monthChart
-                            let weeklyJSON = course.weeklyChart
-                            let dailyJSON = course.dailyChart
-                            let viewModel = SalesViewModel(monthJSON: monthJSON, weeklyJSON: weeklyJSON, dailyJSON: dailyJSON)
-                            VCard(course: course, viewModel: viewModel)
-                        }
-                    }
-                    .padding(20)
-                    .padding(.bottom, 10)
-                    
-                
-//                VStack {
-//                    Text("Recent")
-//                        .font(.title)
-//                        .frame(maxWidth: .infinity, alignment: .leading)
-//                    
-//                    VStack(spacing: 20) {
-//                        ForEach(courseSections) { section in
-//                            HCard(section: section)
-//                        }
-//                    }
-//                }
-//                .padding(20)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Text("ADMIN")
-                        .foregroundColor(.secondary)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: onLogout) {
-                        Text("Log out")
-                            .foregroundColor(.red)
-                    }
-                }
-            }
-            .navigationTitle("Courses")
-        }
-    }
-}
-
-struct TabTwoView: View {
-    var onLogout: () -> Void
-    
-    @StateObject var highestSalesViewModel = HighestSalesViewModel()
-    @StateObject var earningsViewModel = EarningsViewModel()
-    
-    @StateObject private var viewModel = SalesViewModel(monthJSON: "", weeklyJSON: "", dailyJSON: "")
-    var body: some View {
-        NavigationView{
-            ScrollView(.vertical, showsIndicators: true){
-                VStack {
-                    NavigationLink{
-                        SalesPerBookCategoryView(viewModel: highestSalesViewModel)
-                    } label: {
-                        SectorMarkView(salesViewModel: highestSalesViewModel)
-                    }.buttonStyle(PlainButtonStyle())
-//                SectorMarkView()
-                        .padding()
-                        .padding(.horizontal, 10)
-                    NavigationLink{
-                        MinMaxView(viewModel: viewModel)
-                    } label: {
-                        MinMaxLabelView()
-                            
-                    }.buttonStyle(PlainButtonStyle())
-                    .padding()
-                    .padding(.horizontal, 10)
-                    NavigationLink{
-                        EarningsChartView(viewModel: earningsViewModel)
-                    } label: {
-                        EarningsLabelChartView(viewModel: earningsViewModel)
-                            
-                    }.buttonStyle(PlainButtonStyle())
-                    .padding()
-                    .padding(.horizontal, 10)
-                    .padding(.bottom)
-                    
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Text("ADMIN")
-                        .foregroundColor(.secondary)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: onLogout) {
-                        Text("Log out")
-                            .foregroundColor(.red)
-                    }
-
-                }
-            }
-            .navigationTitle("Statistics")
-        }
-        
-    }
-    func formatDate(date: Date, format: String) -> String {
-            let formatter = DateFormatter()
-            formatter.dateFormat = format
-            return formatter.string(from: date)
-        }
-}
 
 struct MonthlyMinimizedSalesChartView: View {
-    var barColor: Color // Dodana boja kao parametar
+    var barColor: Color
     @ObservedObject var salesViewModel: SalesViewModel
     
     var body: some View {
@@ -335,10 +78,9 @@ struct MonthlyMinimizedSalesChartView: View {
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month)) { value in
                     AxisValueLabel(format: .dateTime.month(.abbreviated))
-                        .foregroundStyle(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1)))// Skratnice naziva mjeseci
+                        .foregroundStyle(Color(#colorLiteral(red: 0.922002852, green: 0.9209583402, blue: 0.9954648614, alpha: 1)))
                 }
             }
-            
             .chartYAxis(.hidden)
             Text("COURSE SALE OVERVIEW")
                 .font(.footnote)
@@ -348,10 +90,8 @@ struct MonthlyMinimizedSalesChartView: View {
                 .padding(.trailing, 5)
                 .fontWeight(.semibold)
                 .opacity(0.7)
-            
-
         }
-            }
+    }
 }
 
 struct WeeklySale: Codable, Identifiable {
@@ -384,6 +124,7 @@ struct WeeklySalesChartView: View {
     @State private var selectedChartStyle: ChartStyle = .bar
 
     var body: some View {
+        ScrollView(.vertical, showsIndicators: false){
         VStack {
             
             ZStack {
@@ -408,7 +149,7 @@ struct WeeklySalesChartView: View {
                     .font(.body)
                     .frame(alignment: .leading)
                     .foregroundStyle(.secondary)
-                    
+                
                     .fixedSize(horizontal: false, vertical: false)
                 Spacer()
                 HStack(spacing: 0) {
@@ -436,29 +177,52 @@ struct WeeklySalesChartView: View {
             
             Toggle("Show average line", isOn: $showAverageLine)
             
-            List {
-                // Header sekcija
-                Section(header: headerView) {
-                    ForEach(salesViewModel.salesByWeek.reversed()) { sale in
+            HStack {
+                Text("Week")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.headline)
+                Text("Sales")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.headline)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            LazyVStack(alignment: .leading, spacing: 0) { // spacing = 0 jer Divider dodaje razmak
+                let sales = salesViewModel.salesByWeek.reversed()
+                
+                ForEach(Array(sales.enumerated()), id: \.element.id) { index, sale in
+                    VStack {
                         HStack {
                             Text(sale.formattedWeek)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 8)
                             Text("\(sale.sales)")
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 8)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        
+                        // Dodaj Divider osim ispod zadnjeg elementa
+                        if index < sales.count - 1 {
+                            Divider()
+                                .background(Color.secondary.opacity(0.2)) // Boja bliska placeholderima
+                                .padding(.leading, 16) // Poravnanje sa tekstom
                         }
                     }
                 }
             }
-            .listStyle(PlainListStyle()) // Ili .plain za jednostavniji stil
-            // Pozadina celog prikaza
-            .frame(maxHeight: 320)
+            .padding(.vertical, 4)
+            .background(Color.gray.opacity(0.1)) // Blaga pozadina da odvoji elemente
+            .cornerRadius(8)
             
             
-                
+            
+            
         }
-//        .onAppear {
-//            salesViewModel.loadWeeklySalesData()
-//        }
+    }
+
         
         
         
@@ -915,13 +679,9 @@ struct MinMaxView: View {
     @State private var displayWeeklyString: String = "Course 1"
     
     var body: some View {
+        ScrollView(.vertical, showsIndicators: true){
         VStack{
-//            Text("Presented Data is valid for the past year.")
-//                .font(.footnote)
-//                .frame(maxWidth: .infinity, alignment: .leading)
-//                .foregroundStyle(.secondary)
-//                .fontWeight(.semibold)
-//                .padding(.bottom, 10)
+            
             Picker("Chart Type", selection: $selectedChartStyle) {
                 ForEach(ChartStyle.allCases) {
                     Text($0.rawValue)
@@ -940,11 +700,12 @@ struct MinMaxView: View {
                     WeeklyMinMaxSalesChartView(viewModel: viewModel, selectedCourse: $selectedWeeklyCourse, displayValue: $displayWeeklyString)
                         .transition(.opacity)
                 }
-                        
-                }.animation(.easeInOut(duration: 0.25), value: selectedChartStyle)
-            Spacer()
                 
+            }.animation(.easeInOut(duration: 0.25), value: selectedChartStyle)
+            Spacer()
+            
         }
+    }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: probicaDjo) {
@@ -1856,8 +1617,6 @@ struct SectorMarkView: View {
 
     var body: some View {
         HStack {
-            // Tekst sa informacijom o najprodavanijem kursu
-//            Text(salesViewModel.bestSellingPercentageText)
             if let bestSellingCategory = salesViewModel.bestSellingCategory {
                 let percentage = (bestSellingCategory.sales / salesViewModel.totalSales) * 100
 
@@ -1880,6 +1639,7 @@ struct SectorMarkView: View {
                     
                     
                 }
+                .frame(width: UIScreen.main.bounds.width < 400 ? 160 : nil) // Ograniči širinu SAMO ako je ekran manji
                 .padding(.leading, 24)
                 .padding(.trailing, 16)
                                
@@ -1963,7 +1723,7 @@ struct SalesPerBookCategoryView: View {
                         .foregroundColor(.primary) // Ostatak teksta u default boji
                 }
                 
-                .padding(.bottom)
+                
                 .font(.title3)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                 .lineLimit(nil)
@@ -1981,6 +1741,8 @@ struct SalesPerBookCategoryView: View {
                 CustomSalesPerBookCategoryBarChartView(salesViewModel: viewModel) // Bar Chart prikaz
                 case .pie:
                     FullSizePieChartView(salesViewModel: viewModel) // Pie Chart prikaz
+                    .padding(.vertical)
+                    
             }
             Spacer()
             
@@ -2067,6 +1829,7 @@ struct FullSizePieChartView: View {
     @ObservedObject var salesViewModel: HighestSalesViewModel
     
     var body: some View {
+        
         VStack(spacing: 20) {
             
             //                .font(.headline)
@@ -2081,7 +1844,9 @@ struct FullSizePieChartView: View {
                 .cornerRadius(5)
                 .foregroundStyle(by: .value("Naziv", data.category))
                 .opacity(data.category == salesViewModel.bestSellingCategory?.category ? 1 : 0.3)
-            }.chartLegend(.hidden)
+            }
+            
+            .chartLegend(.hidden)
             
             
             .chartBackground { chartProxy in
@@ -2108,11 +1873,13 @@ struct FullSizePieChartView: View {
                     }
                 }
             }
-            .frame(width: 360, height: 360) // Veći prikaz
+            .frame(maxWidth: .infinity, alignment: .center)
+            //.frame(width: 360, height: 360) // Veći prikaz
             //.padding()
             customLegend
         }
-        //.padding()
+        
+        
     }
     private var customLegend: some View {
         HStack {
@@ -2132,7 +1899,7 @@ struct FullSizePieChartView: View {
                 
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 10)
+            
         
     }
      }
@@ -2175,80 +1942,122 @@ struct DailySalesChartView: View {
     
     @State private var selectedChartStyle: ChartStyle = .bar
     var body: some View {
-        VStack {
-            
-            
-            ZStack {
-                if selectedChartStyle == .bar {
-                    barMarkView
-                        .transition(.opacity)
-                } else if selectedChartStyle == .line {
-                    lineMarkView
-                        .transition(.opacity)
-                }else{
-                    roundedlineMarkView
-                        .transition(.opacity)
-                }
-            }
-            .onAppear {
-                if let lastDate = salesViewModel.dailySales.last?.saleDate {
-                // Postavljanje scroll pozicije tako da započne na desnoj strani (zadnji datum)
-                scrollPosition = lastDate.timeIntervalSinceReferenceDate
-            }
-        }
-            .animation(.easeInOut(duration: 0.2), value: selectedChartStyle)
-            
-            Divider()
-                .background(Color.secondary.opacity(0.5)) // Boja slična placeholderu
-                .frame(height: 1) // Tanak divider
-            // Horizontalni razmak
-            HStack{
-                Text("Average: \(String(format: "%.1f", salesViewModel.averageDailySales))")
-                    .font(.body)
-                    .frame(alignment: .leading)
-                    .foregroundStyle(.secondary)
+        ScrollView(.vertical, showsIndicators: false){
+            VStack {
                 
-                    .fixedSize(horizontal: false, vertical: false)
-                Spacer()
-                HStack(spacing: 0) {
-                    Text("Chart style:")
+                
+                ZStack {
+                    if selectedChartStyle == .bar {
+                        barMarkView
+                            .transition(.opacity)
+                    } else if selectedChartStyle == .line {
+                        lineMarkView
+                            .transition(.opacity)
+                    }else{
+                        roundedlineMarkView
+                            .transition(.opacity)
+                    }
+                }
+                .onAppear {
+                    if let lastDate = salesViewModel.dailySales.last?.saleDate {
+                        // Postavljanje scroll pozicije tako da započne na desnoj strani (zadnji datum)
+                        scrollPosition = lastDate.timeIntervalSinceReferenceDate
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: selectedChartStyle)
+                
+                Divider()
+                    .background(Color.secondary.opacity(0.5)) // Boja slična placeholderu
+                    .frame(height: 1) // Tanak divider
+                // Horizontalni razmak
+                HStack{
+                    Text("Average: \(String(format: "%.1f", salesViewModel.averageDailySales))")
+                        .font(.body)
+                        .frame(alignment: .leading)
                         .foregroundStyle(.secondary)
                     
-                    Picker("Chart Type", selection: $selectedChartStyle) {
-                        ForEach(ChartStyle.allCases) {
-                            Text($0.rawValue)
+                        .fixedSize(horizontal: false, vertical: false)
+                    Spacer()
+                    HStack(spacing: 0) {
+                        Text("Chart style:")
+                            .foregroundStyle(.secondary)
+                        
+                        Picker("Chart Type", selection: $selectedChartStyle) {
+                            ForEach(ChartStyle.allCases) {
+                                Text($0.rawValue)
+                            }
                         }
+                        .frame(alignment: .trailing)
+                        .pickerStyle(.menu)
+                        .tint(color)
+                        
                     }
-                    .frame(alignment: .trailing)
-                    .pickerStyle(.menu)
-                    .tint(color)
                     
                 }
+                .frame(maxWidth: .infinity)
+                Divider()
+                    .background(Color.secondary.opacity(0.5)) // Boja slična placeholderu
+                    .frame(height: 1) // Tanak divider
+                // Horizontalni razmak
+                    .padding(.horizontal, -16)
+                HStack {
+                    Text("Week")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.headline)
+                    Text("Sales")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.headline)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
                 
-            }
-            .frame(maxWidth: .infinity)
-            Divider()
-                .background(Color.secondary.opacity(0.5)) // Boja slična placeholderu
-                .frame(height: 1) // Tanak divider
-            // Horizontalni razmak
-                .padding(.horizontal, -16)
-            //Toggle("Show average line", isOn: $showAverageLine)
-            List {
-                // Header sekcija
-                Section(header: headerView) {
-                    ForEach(Array(salesViewModel.dailySales.reversed()), id: \.saleDate) { sale in
-                        HStack {
-                            Text(sale.formattedDay)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Text("\(sale.quantity)")
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                LazyVStack(alignment: .leading, spacing: 0) { // spacing = 0 jer Divider dodaje razmak
+                    let sales = salesViewModel.dailySales.reversed()
+                    
+                    ForEach(Array(sales.enumerated()), id: \.element.id) { index, sale in
+                        VStack {
+                            HStack {
+                                Text(sale.formattedDay)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.top, 8)
+                                Text("\(sale.quantity)")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.top, 8)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            
+                            // Dodaj Divider osim ispod zadnjeg elementa
+                            if index < sales.count - 1 {
+                                Divider()
+                                    .background(Color.secondary.opacity(0.2)) // Boja bliska placeholderima
+                                    .padding(.leading, 16) // Poravnanje sa tekstom
+                            }
                         }
                     }
                 }
+                .padding(.vertical, 4)
+                .background(Color.gray.opacity(0.1)) // Blaga pozadina da odvoji elemente
+                .cornerRadius(8)
+                //Toggle("Show average line", isOn: $showAverageLine)
+                //            List {
+                //                // Header sekcija
+                //                Section(header: headerView) {
+                //                    ForEach(Array(salesViewModel.dailySales.reversed()), id: \.saleDate) { sale in
+                //                        HStack {
+                //                            Text(sale.formattedDay)
+                //                                .frame(maxWidth: .infinity, alignment: .leading)
+                //                            Text("\(sale.quantity)")
+                //                                .frame(maxWidth: .infinity, alignment: .leading)
+                //                        }
+                //                    }
+                //                }
+                //            }
+                //            .listStyle(PlainListStyle()) // Ili .plain za jednostavniji stil
+                //            // Pozadina celog prikaza
+                //            .frame(maxHeight: 320)
+                
             }
-            .listStyle(PlainListStyle()) // Ili .plain za jednostavniji stil
-            // Pozadina celog prikaza
-            .frame(maxHeight: 320)
         }
         
 
@@ -2518,7 +2327,7 @@ struct VCard: View {
         }
         .foregroundColor(.white)
         //        .padding(30)
-        .frame(width: 360, height: 460)
+        .frame(height: 460)
 //        .background(.linearGradient(colors: [course.color.opacity(1), course.color.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .background(course.color)
         .mask(RoundedRectangle(cornerRadius: 30, style: .continuous))
@@ -3618,8 +3427,10 @@ struct EarningsDetailGridView: View {
             ForEach(viewModel.monthlyEarnings) { data in
                 GridRow {
                     Text(month(for: data.month))
-
+                       
+                        
                     Text(String(format: "%.2f", data.grossEarnings))
+                        
                     Text(String(format: "%.2f", data.netEarnings))
                     Text(String(format: "%.2f", data.grossEarnings - data.netEarnings))
                         .bold()
@@ -3721,7 +3532,7 @@ struct EarningsChartView: View {
                 .padding(.horizontal)
                 .frame(maxWidth: .infinity, alignment: .leading)
             EarningsDetailGridView(viewModel: viewModel)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 10)
             Divider()
                 .padding(.bottom)
         }
@@ -3926,5 +3737,5 @@ extension UIView {
 }
 
 #Preview{
-    
+    EarningsDetailGridView(viewModel: EarningsViewModel())
 }
