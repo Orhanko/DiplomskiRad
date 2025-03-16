@@ -31,3 +31,12 @@ extension Color {
         return self
     }
 }
+
+//extension UIView {
+//    func takeScreenshot() -> UIImage? {
+//        let renderer = UIGraphicsImageRenderer(bounds: bounds)
+//        return renderer.image { context in
+//            layer.render(in: context.cgContext)
+//        }
+//    }
+//}

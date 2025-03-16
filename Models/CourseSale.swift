@@ -10,9 +10,9 @@ import Foundation
 import SwiftUI
 import Charts
 
-struct CourseSale: Identifiable {
-    let id = UUID()
-    let courseName: String
-    let day: Date
-    let salesCount: Int
-}
+//struct CourseSale: Identifiable {
+//    let id = UUID()
+//    let courseName: String
+//    let day: Date
+//    let salesCount: Int
+//}

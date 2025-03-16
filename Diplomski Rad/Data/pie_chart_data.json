@@ -1,7 +1,6 @@
 
 [
-    {"category": "Course 1", "sales": 450.0},
-    {"category": "Course 2", "sales": 320.0},
-    {"category": "Course 3", "sales": 150.0},
-    {"category": "Course 4", "sales": 380.0}
+    {"category": "Course 1", "sales": 350.0},
+    {"category": "Course 2", "sales": 270.0},
+    {"category": "Course 3", "sales": 185.0}
 ]

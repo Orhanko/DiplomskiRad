@@ -20,7 +20,7 @@ struct TabOneView: View {
                             let weeklyJSON = course.weeklyChart
                             let dailyJSON = course.dailyChart
                             let viewModel = SalesViewModel(monthJSON: monthJSON, weeklyJSON: weeklyJSON, dailyJSON: dailyJSON)
-                            VCard(course: course, viewModel: viewModel)
+                            CourseView(course: course, viewModel: viewModel)
                         }
                     }
 //                    .padding(.vertical)
