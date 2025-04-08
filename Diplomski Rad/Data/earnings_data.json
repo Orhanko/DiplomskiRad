@@ -1,5 +1,7 @@
 {
     "monthlyEarnings": [
+        {"month": "2025-03-31", "grossEarnings": 13159.40, "netEarnings": 9869.55},
+        {"month": "2025-02-28", "grossEarnings": 9784.20, "netEarnings": 6588.15},
         {"month": "2025-01-31", "grossEarnings": 14567.90, "netEarnings": 10925.92},
         {"month": "2024-12-31", "grossEarnings": 8852.75, "netEarnings": 5389.56},
         {"month": "2024-11-30", "grossEarnings": 14923.60, "netEarnings": 11192.70},
@@ -10,7 +12,5 @@
         {"month": "2024-06-30", "grossEarnings": 19420.75, "netEarnings": 15815.56},
         {"month": "2024-05-31", "grossEarnings": 13948.85, "netEarnings": 10461.64},
         {"month": "2024-04-30", "grossEarnings": 15327.60, "netEarnings": 11495.70},
-        {"month": "2024-03-31", "grossEarnings": 13159.40, "netEarnings": 9869.55},
-        {"month": "2024-02-29", "grossEarnings": 9784.20, "netEarnings": 6588.15}
     ]
 }

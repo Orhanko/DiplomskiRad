@@ -32,6 +32,9 @@ class EarningsViewModel: ObservableObject {
         } catch {
             print("Error decoding JSON: \(error)")
         }
+        for entry in monthlyEarnings {
+            print(entry.month)
+        }
     }
 
     private func dateFormatter() -> DateFormatter {

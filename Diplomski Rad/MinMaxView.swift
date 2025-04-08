@@ -51,7 +51,11 @@ struct MinMaxView: View {
             
         }
     }
+        .navigationTitle("Min & Max Sales")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: configurePDF) {
                     Image(systemName: "printer.filled.and.paper")

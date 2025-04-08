@@ -93,7 +93,7 @@ class SalesViewModel: ObservableObject {
     
     var averageDailySales: Double {
             guard !dailySales.isEmpty else { return 0.0 }
-            let totalSales = dailySales.reduce(0) { $0 + $1.quantity }
+        let totalSales = dailySales.reduce(0) { $0 + $1.sales }
             return Double(totalSales) / Double(dailySales.count)
         }
     

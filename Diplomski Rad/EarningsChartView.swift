@@ -89,7 +89,8 @@ struct EarningsChartView: View {
             
 
     }
-        
+        .navigationTitle("Earnings")
+        .navigationBarTitleDisplayMode(.inline)
         
         
         

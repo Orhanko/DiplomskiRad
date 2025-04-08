@@ -10,7 +10,7 @@ import Foundation
 struct DailySale: Identifiable, Codable {
     let id = UUID()
     let saleDate: Date
-    let quantity: Int
+    let sales: Int
     
     var formattedDay: String {
         let formatter = DateFormatter()

@@ -135,6 +135,19 @@ struct WeeklyMinMaxSalesChartView: View {
                 
                 }
         }
+        .chartLegend(position: .bottom, spacing: 10) {
+            HStack {
+                Circle()
+                    .fill(.green) // Boja za maksimalne vrijednosti
+                    .frame(width: 10, height: 10)
+                Text("Max").foregroundStyle(Color.secondary).font(.footnote)
+
+                Circle()
+                    .fill(.red) // Boja za minimalne vrijednosti
+                    .frame(width: 10, height: 10)
+                Text("Min").foregroundColor(Color.secondary).font(.footnote)
+            }
+        }
         .chartScrollableAxes(.horizontal)
 //        .chartXVisibleDomain(length: 6)  // Broj prikazanih sedmica
         .chartXSelection(value: Binding(

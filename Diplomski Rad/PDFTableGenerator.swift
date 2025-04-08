@@ -734,7 +734,7 @@ class PDFTableGenerator {
 
             // Tekst u redu
             let week = sale.formattedDay
-            let sales = "\(sale.quantity)"
+            let sales = "\(sale.sales)"
             let textAttributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 12),
                 .foregroundColor: UIColor.black

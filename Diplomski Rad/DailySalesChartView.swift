@@ -7,7 +7,6 @@
 
 import SwiftUI
 import Charts
-
 struct DailySalesChartView: View {
     
     @ObservedObject var salesViewModel: SalesViewModel
@@ -119,7 +118,7 @@ struct DailySalesChartView: View {
                                 Text(sale.formattedDay)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.top, 8)
-                                Text("\(sale.quantity)")
+                                Text("\(sale.sales)")
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.top, 8)
                             }
@@ -181,7 +180,7 @@ struct DailySalesChartView: View {
             Chart(salesViewModel.dailySales, id: \.saleDate) {
                 BarMark(
                     x: .value("Day", $0.saleDate, unit: .day),
-                    y: .value("Sales", $0.quantity)
+                    y: .value("Sales", $0.sales)
                 ).foregroundStyle(color)
 //                if showAverageLine {
 //                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageDailySales))
@@ -224,7 +223,7 @@ struct DailySalesChartView: View {
                 
                 LineMark(
                     x: .value("Day", $0.saleDate, unit: .day),
-                    y: .value("Sales", $0.quantity)
+                    y: .value("Sales", $0.sales)
                     
                 ).foregroundStyle(color)
                 
@@ -269,7 +268,7 @@ struct DailySalesChartView: View {
                 
                 LineMark(
                     x: .value("Day", $0.saleDate, unit: .day),
-                    y: .value("Sales", $0.quantity)
+                    y: .value("Sales", $0.sales)
                     
                 ).foregroundStyle(color)
                 .interpolationMethod(.catmullRom)

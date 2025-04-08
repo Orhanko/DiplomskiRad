@@ -87,6 +87,8 @@ struct SalesPerBookCategoryView: View {
             
         }
         .padding()
+        .navigationTitle("Course Overview")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: generatePDF) {
