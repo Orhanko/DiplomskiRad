@@ -8,7 +8,7 @@
 import SwiftUI
 import Charts
 struct DailySalesChartView: View {
-    
+    @State private var showAverageLine: Bool = false
     @ObservedObject var salesViewModel: SalesViewModel
     let color: Color
     let numberOfDisplayedDays = 31
@@ -98,6 +98,8 @@ struct DailySalesChartView: View {
                     .frame(height: 1) // Tanak divider
                 // Horizontalni razmak
                     .padding(.horizontal, -16)
+                Toggle("Show average line", isOn: $showAverageLine)
+                    .padding(.trailing, 2)
                 HStack {
                     Text("Day")
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,11 +184,11 @@ struct DailySalesChartView: View {
                     x: .value("Day", $0.saleDate, unit: .day),
                     y: .value("Sales", $0.sales)
                 ).foregroundStyle(color)
-//                if showAverageLine {
-//                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageDailySales))
-//                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
-//                        .foregroundStyle(color.darker(by: 0.25))
-//                }
+                if showAverageLine {
+                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageDailySales))
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [5]))
+                        .foregroundStyle(.averageLine)
+                }
 
                 
             }
@@ -228,11 +230,11 @@ struct DailySalesChartView: View {
                 ).foregroundStyle(color)
                 
                 .shadow(color: color, radius: 4, x: 0, y: 5)
-//                if showAverageLine {
-//                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageDailySales))
-//                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
-//                        .foregroundStyle(color.darker(by: 0.25))
-//                }
+                if showAverageLine {
+                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageDailySales))
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [5]))
+                        .foregroundStyle(.averageLine)
+                }
 
                 
             }
@@ -273,11 +275,11 @@ struct DailySalesChartView: View {
                 ).foregroundStyle(color)
                 .interpolationMethod(.catmullRom)
                 .shadow(color: color, radius: 4, x: 0, y: 5)
-//                if showAverageLine {
-//                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageDailySales))
-//                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
-//                        .foregroundStyle(color.darker(by: 0.25))
-//                }
+                if showAverageLine {
+                    RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageDailySales))
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [5]))
+                        .foregroundStyle(.averageLine)
+                }
 
                 
             }
@@ -303,4 +305,9 @@ struct DailySalesChartView: View {
             .frame(height: 300)
         }
     }
+}
+
+#Preview{
+    DailySalesChartView(salesViewModel: SalesViewModel(monthJSON: "", weeklyJSON: "", dailyJSON: "first-course-daily-sales"), color: .blue)
+        .padding(.horizontal)
 }

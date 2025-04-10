@@ -78,6 +78,7 @@ struct WeeklySalesChartView: View {
                 .padding(.horizontal, -16)
             
             Toggle("Show average line", isOn: $showAverageLine)
+                .padding(.trailing, 2)
             
             HStack {
                 Text("Week")
@@ -170,8 +171,8 @@ struct WeeklySalesChartView: View {
                 
                 if showAverageLine {
                     RuleMark(y: .value("Prosjek prodaje", salesViewModel.averageWeeklySales))
-                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
-                        .foregroundStyle(color.darker(by: 0.25))
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [5]))
+                        .foregroundStyle(.averageLine)
                 }
             }
             
@@ -231,7 +232,7 @@ struct WeeklySalesChartView: View {
                         y: .value("Average Sales", salesViewModel.averageWeeklySales)
                     )
                     .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
-                    .foregroundStyle(color)
+                    .foregroundStyle(.averageLine)
                 }
             }
             .chartXAxis {
@@ -277,7 +278,7 @@ struct WeeklySalesChartView: View {
                         y: .value("Average Sales", salesViewModel.averageWeeklySales)
                     )
                     .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
-                    .foregroundStyle(color)
+                    .foregroundStyle(.averageLine)
                 }
             }
             .chartXAxis {

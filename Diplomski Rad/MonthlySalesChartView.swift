@@ -74,12 +74,14 @@ struct MonthlySalesChartView: View {
                         .background(Color.secondary.opacity(0.5)) // Boja slična placeholderu
                         .frame(height: 1) // Tanak divider
                          // Horizontalni razmak
-                        .padding(.horizontal, -16)
+                        //.padding(.horizontal, -16)
             
             Toggle("Show average line", isOn: $showAverageLine)
+                .padding(.trailing, 2)
             ZStack{
                 if selectedChartStyle == .bar {
                     Toggle("Show sales values", isOn: $showAnnotation)
+                        .padding(.trailing, 2)
                         
                         
                         .transition(.opacity)
@@ -125,8 +127,8 @@ struct MonthlySalesChartView: View {
                 RuleMark(
                     y: .value("Average Sales", salesViewModel.averageSales)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
-                .foregroundStyle(color.darker(by: 0.25))
+                .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
+                .foregroundStyle(.averageLine)
             }
         }
         .chartXAxis {
@@ -168,8 +170,8 @@ struct MonthlySalesChartView: View {
                 RuleMark(
                     y: .value("Average Sales", salesViewModel.averageSales)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
-                .foregroundStyle(color)
+                .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
+                .foregroundStyle(.averageLine)
             }
         }
         .chartXAxis {
@@ -210,8 +212,8 @@ struct MonthlySalesChartView: View {
                 RuleMark(
                     y: .value("Average Sales", salesViewModel.averageSales)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6]))
-                .foregroundStyle(color)
+                .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [6]))
+                .foregroundStyle(.averageLine)
             }
         }
         .chartXAxis {

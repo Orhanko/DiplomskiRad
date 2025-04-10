@@ -62,7 +62,7 @@ struct LoginView: View {
                                 }
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                if username == "user" && password == "password" {
+                                if username == "1" && password == "1" {
                                     onLogin(username, password)
                                     lastLoginDate = Date()
                                     errorMessage = ""  // Reset error message on success

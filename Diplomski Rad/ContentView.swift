@@ -33,7 +33,7 @@ struct ContentView: View {
     }
     private func handleLogin(username: String, password: String) {
             // Simulated login validation
-            if username == "user" && password == "password" {
+            if username == "1" && password == "1" {
                 withAnimation {
                                 isLoggedIn = true
                     
